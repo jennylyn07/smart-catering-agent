@@ -1,0 +1,45 @@
+{
+  "version": "1.0",
+  "as_of": "2026-04-18",
+  "inventory": [
+    {"ingredient": "chicken", "quantity": 5.0, "unit": "kg"},
+    {"ingredient": "pork", "quantity": 3.0, "unit": "kg"},
+    {"ingredient": "ground pork", "quantity": 2.0, "unit": "kg"},
+    {"ingredient": "beef", "quantity": 1.5, "unit": "kg"},
+
+    {"ingredient": "soy sauce", "quantity": 3.0, "unit": "L"},
+    {"ingredient": "vinegar", "quantity": 2.0, "unit": "L"},
+    {"ingredient": "tamarind", "quantity": 1.0, "unit": "kg"},
+    {"ingredient": "peanut butter", "quantity": 1.0, "unit": "kg"},
+    {"ingredient": "annatto", "quantity": 0.2, "unit": "kg"},
+
+    {"ingredient": "garlic", "quantity": 1.0, "unit": "kg"},
+    {"ingredient": "onion", "quantity": 1.2, "unit": "kg"},
+    {"ingredient": "ginger", "quantity": 0.5, "unit": "kg"},
+    {"ingredient": "black pepper", "quantity": 0.3, "unit": "kg"},
+    {"ingredient": "bay leaf", "quantity": 0.15, "unit": "kg"},
+    {"ingredient": "chili", "quantity": 0.3, "unit": "kg"},
+
+    {"ingredient": "tomato", "quantity": 2.0, "unit": "kg"},
+    {"ingredient": "radish", "quantity": 1.0, "unit": "kg"},
+    {"ingredient": "kangkong", "quantity": 1.0, "unit": "kg"},
+    {"ingredient": "eggplant", "quantity": 1.0, "unit": "kg"},
+    {"ingredient": "string beans", "quantity": 1.0, "unit": "kg"},
+    {"ingredient": "bok choy", "quantity": 0.8, "unit": "kg"},
+    {"ingredient": "cabbage", "quantity": 1.2, "unit": "kg"},
+    {"ingredient": "carrot", "quantity": 1.0, "unit": "kg"},
+    {"ingredient": "squash", "quantity": 2.0, "unit": "kg"},
+
+    {"ingredient": "wheat noodles", "quantity": 3.0, "unit": "kg"},
+    {"ingredient": "spring roll wrapper", "quantity": 2.0, "unit": "kg"},
+
+    {"ingredient": "taro leaves", "quantity": 0.8, "unit": "kg"},
+    {"ingredient": "coconut milk", "quantity": 6.0, "unit": "L"},
+
+    {"ingredient": "young coconut", "quantity": 4.0, "unit": "kg"},
+    {"ingredient": "nata de coco", "quantity": 3.0, "unit": "kg"},
+    {"ingredient": "all-purpose cream", "quantity": 3.0, "unit": "L"},
+    {"ingredient": "condensed milk", "quantity": 2.0, "unit": "L"},
+    {"ingredient": "pandan jelly", "quantity": 2.0, "unit": "kg"}
+  ]
+}

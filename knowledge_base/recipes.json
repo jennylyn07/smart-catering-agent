@@ -1,0 +1,150 @@
+{
+  "version": "1.0",
+  "source": "mock",
+  "recipes": [
+    {
+      "id": "fil-001",
+      "name": "Chicken Adobo",
+      "cuisine": "filipino",
+      "category": "main",
+      "allergens": [
+        "soy"
+      ],
+      "dietary_flags": [],
+      "ingredients": [
+        {"name": "chicken", "quantity": 1.0, "unit": "kg"},
+        {"name": "soy sauce", "quantity": 0.25, "unit": "L"},
+        {"name": "vinegar", "quantity": 0.25, "unit": "L"},
+        {"name": "garlic", "quantity": 0.08, "unit": "kg"},
+        {"name": "bay leaf", "quantity": 0.005, "unit": "kg"},
+        {"name": "black pepper", "quantity": 0.01, "unit": "kg"}
+      ]
+    },
+    {
+      "id": "fil-002",
+      "name": "Pork Sinigang",
+      "cuisine": "filipino",
+      "category": "main",
+      "allergens": [],
+      "dietary_flags": [],
+      "ingredients": [
+        {"name": "pork", "quantity": 1.0, "unit": "kg"},
+        {"name": "tamarind", "quantity": 0.25, "unit": "kg"},
+        {"name": "tomato", "quantity": 0.3, "unit": "kg"},
+        {"name": "onion", "quantity": 0.2, "unit": "kg"},
+        {"name": "radish", "quantity": 0.3, "unit": "kg"},
+        {"name": "kangkong", "quantity": 0.25, "unit": "kg"}
+      ]
+    },
+    {
+      "id": "fil-003",
+      "name": "Beef Kare-Kare",
+      "cuisine": "filipino",
+      "category": "main",
+      "allergens": [
+        "peanut"
+      ],
+      "dietary_flags": [],
+      "ingredients": [
+        {"name": "beef", "quantity": 1.0, "unit": "kg"},
+        {"name": "peanut butter", "quantity": 0.3, "unit": "kg"},
+        {"name": "annatto", "quantity": 0.02, "unit": "kg"},
+        {"name": "eggplant", "quantity": 0.4, "unit": "kg"},
+        {"name": "string beans", "quantity": 0.3, "unit": "kg"},
+        {"name": "bok choy", "quantity": 0.25, "unit": "kg"}
+      ]
+    },
+    {
+      "id": "fil-004",
+      "name": "Pancit Canton",
+      "cuisine": "filipino",
+      "category": "noodles",
+      "allergens": [
+        "gluten",
+        "soy"
+      ],
+      "dietary_flags": [],
+      "ingredients": [
+        {"name": "wheat noodles", "quantity": 0.6, "unit": "kg"},
+        {"name": "chicken", "quantity": 0.5, "unit": "kg"},
+        {"name": "cabbage", "quantity": 0.3, "unit": "kg"},
+        {"name": "carrot", "quantity": 0.2, "unit": "kg"},
+        {"name": "soy sauce", "quantity": 0.15, "unit": "L"},
+        {"name": "garlic", "quantity": 0.05, "unit": "kg"}
+      ]
+    },
+    {
+      "id": "fil-005",
+      "name": "Lumpiang Shanghai",
+      "cuisine": "filipino",
+      "category": "appetizer",
+      "allergens": [
+        "gluten"
+      ],
+      "dietary_flags": [],
+      "ingredients": [
+        {"name": "ground pork", "quantity": 0.8, "unit": "kg"},
+        {"name": "spring roll wrapper", "quantity": 0.3, "unit": "kg"},
+        {"name": "carrot", "quantity": 0.15, "unit": "kg"},
+        {"name": "onion", "quantity": 0.15, "unit": "kg"},
+        {"name": "garlic", "quantity": 0.03, "unit": "kg"}
+      ]
+    },
+    {
+      "id": "fil-006",
+      "name": "Laing",
+      "cuisine": "filipino",
+      "category": "vegetable",
+      "allergens": [
+        "coconut"
+      ],
+      "dietary_flags": [
+        "vegetarian"
+      ],
+      "ingredients": [
+        {"name": "taro leaves", "quantity": 0.25, "unit": "kg"},
+        {"name": "coconut milk", "quantity": 0.8, "unit": "L"},
+        {"name": "garlic", "quantity": 0.03, "unit": "kg"},
+        {"name": "ginger", "quantity": 0.03, "unit": "kg"},
+        {"name": "chili", "quantity": 0.01, "unit": "kg"}
+      ]
+    },
+    {
+      "id": "fil-007",
+      "name": "Ginataang Gulay",
+      "cuisine": "filipino",
+      "category": "vegetable",
+      "allergens": [
+        "coconut"
+      ],
+      "dietary_flags": [
+        "vegetarian"
+      ],
+      "ingredients": [
+        {"name": "squash", "quantity": 0.6, "unit": "kg"},
+        {"name": "string beans", "quantity": 0.3, "unit": "kg"},
+        {"name": "coconut milk", "quantity": 0.6, "unit": "L"},
+        {"name": "onion", "quantity": 0.15, "unit": "kg"},
+        {"name": "garlic", "quantity": 0.03, "unit": "kg"}
+      ]
+    },
+    {
+      "id": "fil-008",
+      "name": "Buko Pandan",
+      "cuisine": "filipino",
+      "category": "dessert",
+      "allergens": [
+        "dairy",
+        "coconut"
+      ],
+      "dietary_flags": [],
+      "ingredients": [
+        {"name": "young coconut", "quantity": 0.6, "unit": "kg"},
+        {"name": "nata de coco", "quantity": 0.4, "unit": "kg"},
+        {"name": "all-purpose cream", "quantity": 0.5, "unit": "L"},
+        {"name": "condensed milk", "quantity": 0.3, "unit": "L"},
+        {"name": "pandan jelly", "quantity": 0.4, "unit": "kg"}
+      ]
+    }
+  ]
+}

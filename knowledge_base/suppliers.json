@@ -1,0 +1,72 @@
+{
+  "version": "1.0",
+  "currency": "PHP",
+  "suppliers": [
+    {
+      "id": "sup-001",
+      "name": "Metro Manila Fresh Market",
+      "type": "wet_market",
+      "service_area": ["Metro Manila"],
+      "lead_time_days": 1,
+      "contact": {"phone": "+63-900-111-2222", "email": "orders@mmfresh.example"},
+      "products": [
+        "chicken",
+        "pork",
+        "ground pork",
+        "beef",
+        "garlic",
+        "onion",
+        "ginger",
+        "tomato",
+        "carrot",
+        "cabbage",
+        "string beans",
+        "eggplant",
+        "bok choy",
+        "radish",
+        "kangkong",
+        "squash",
+        "chili"
+      ],
+      "notes": "Best for same-day vegetables and fresh meat. Prices may vary daily."
+    },
+    {
+      "id": "sup-002",
+      "name": "Pantry Wholesale PH",
+      "type": "wholesaler",
+      "service_area": ["Luzon"],
+      "lead_time_days": 2,
+      "contact": {"phone": "+63-900-333-4444", "email": "sales@pantrywholesale.example"},
+      "products": [
+        "soy sauce",
+        "vinegar",
+        "black pepper",
+        "bay leaf",
+        "annatto",
+        "wheat noodles",
+        "spring roll wrapper",
+        "tamarind",
+        "peanut butter"
+      ],
+      "notes": "Good for dry goods and bulk orders."
+    },
+    {
+      "id": "sup-003",
+      "name": "Coco & Dairy Supplies",
+      "type": "specialty_supplier",
+      "service_area": ["Metro Manila", "CALABARZON"],
+      "lead_time_days": 2,
+      "contact": {"phone": "+63-900-555-6666", "email": "hello@cocodairy.example"},
+      "products": [
+        "coconut milk",
+        "young coconut",
+        "nata de coco",
+        "all-purpose cream",
+        "condensed milk",
+        "pandan jelly",
+        "taro leaves"
+      ],
+      "notes": "Specializes in coconut-based and dairy dessert ingredients."
+    }
+  ]
+}

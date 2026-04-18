@@ -1,0 +1,46 @@
+{
+  "version": "1.0",
+  "currency": "PHP",
+  "pricing_unit_notes": "Prices are rough mock estimates used for development only.",
+  "items": [
+    {"ingredient": "chicken", "unit": "kg", "price_php": 220.0},
+    {"ingredient": "pork", "unit": "kg", "price_php": 280.0},
+    {"ingredient": "ground pork", "unit": "kg", "price_php": 300.0},
+    {"ingredient": "beef", "unit": "kg", "price_php": 480.0},
+
+    {"ingredient": "soy sauce", "unit": "L", "price_php": 70.0},
+    {"ingredient": "vinegar", "unit": "L", "price_php": 60.0},
+    {"ingredient": "tamarind", "unit": "kg", "price_php": 160.0},
+    {"ingredient": "peanut butter", "unit": "kg", "price_php": 320.0},
+    {"ingredient": "annatto", "unit": "kg", "price_php": 900.0},
+
+    {"ingredient": "garlic", "unit": "kg", "price_php": 140.0},
+    {"ingredient": "onion", "unit": "kg", "price_php": 120.0},
+    {"ingredient": "ginger", "unit": "kg", "price_php": 180.0},
+    {"ingredient": "black pepper", "unit": "kg", "price_php": 650.0},
+    {"ingredient": "bay leaf", "unit": "kg", "price_php": 800.0},
+    {"ingredient": "chili", "unit": "kg", "price_php": 260.0},
+
+    {"ingredient": "tomato", "unit": "kg", "price_php": 90.0},
+    {"ingredient": "radish", "unit": "kg", "price_php": 80.0},
+    {"ingredient": "kangkong", "unit": "kg", "price_php": 70.0},
+    {"ingredient": "eggplant", "unit": "kg", "price_php": 100.0},
+    {"ingredient": "string beans", "unit": "kg", "price_php": 110.0},
+    {"ingredient": "bok choy", "unit": "kg", "price_php": 120.0},
+    {"ingredient": "cabbage", "unit": "kg", "price_php": 70.0},
+    {"ingredient": "carrot", "unit": "kg", "price_php": 95.0},
+    {"ingredient": "squash", "unit": "kg", "price_php": 60.0},
+
+    {"ingredient": "wheat noodles", "unit": "kg", "price_php": 140.0},
+    {"ingredient": "spring roll wrapper", "unit": "kg", "price_php": 220.0},
+
+    {"ingredient": "taro leaves", "unit": "kg", "price_php": 160.0},
+    {"ingredient": "coconut milk", "unit": "L", "price_php": 110.0},
+
+    {"ingredient": "young coconut", "unit": "kg", "price_php": 140.0},
+    {"ingredient": "nata de coco", "unit": "kg", "price_php": 120.0},
+    {"ingredient": "all-purpose cream", "unit": "L", "price_php": 170.0},
+    {"ingredient": "condensed milk", "unit": "L", "price_php": 120.0},
+    {"ingredient": "pandan jelly", "unit": "kg", "price_php": 150.0}
+  ]
+}

@@ -51,6 +51,42 @@
 - Blockers:
   - Optional: AZURE_STORAGE_CONNECTION_STRING is not yet configured (only needed when Blob Storage is used)
 
+#### Session 2 — 2026-04-19
+**What we built:**
+- Created API layer files:
+  - api/models.py (Pydantic request/response models)
+  - api/auth.py (API key auth via X-API-Key header; loads API_KEY from .env)
+  - api/routes.py (POST /api/v1/catering/order)
+  - main.py (FastAPI app entry point + GET /health + SlowAPI integration)
+- Added rate limiting dependency:
+  - Installed slowapi (10 requests per minute rate limit)
+
+**What broke and how we fixed it:**
+- Error: ModuleNotFoundError: No module named 'slowapi'
+  - Cause: slowapi was installed into the global Python site-packages instead of the project venv.
+  - Fix: installed using the venv interpreter (example pattern: `./venv/Scripts/python -m pip install slowapi`).
+- Error: RuntimeError: Missing required environment variable: API_KEY
+  - Cause: the server started before API_KEY was present/loaded from .env.
+  - Fix: added/confirmed `API_KEY` in `.env`, then restarted uvicorn.
+- PowerShell issue: `curl` uses Invoke-WebRequest (header binding errors)
+  - Fix: used `curl.exe` for GET, and PowerShell-native `Invoke-RestMethod` for POST.
+
+**Azure resources used this session:**
+- None
+
+**Git commits made:**
+- Completed Day 1 commit and push (foundation checkpoint)
+
+**Status at end of session:**
+- What is working:
+  - GET /health returns {"status": "ok"}
+  - POST /api/v1/catering/order validates requests and enforces API key auth
+  - Rate limiting is wired (10 requests per minute)
+- What is not yet working:
+  - Agents are not wired into the order endpoint (response is placeholder)
+- Blockers:
+  - None
+
 ---
 
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT
@@ -123,6 +159,18 @@
 
 **Factory function:** A function whose job is to create and return an object. | Example from our project: `create_cosmos_client()`.
 
+**FastAPI:** A Python framework for building APIs quickly with built-in validation and type hints. | Example from our project: `main.py` creates `FastAPI(...)` and registers routes.
+
+**REST endpoint:** A URL + HTTP method that performs one action. | Example from our project: `POST /api/v1/catering/order`.
+
+**Middleware:** Code that runs before/after your endpoint handler, like a checkpoint in the request path. | Example from our project: SlowAPI middleware.
+
+**Dependency (FastAPI):** A function that FastAPI runs before the endpoint to enforce rules (auth, etc.). | Example from our project: `require_api_key`.
+
+**Rate limiting:** A limit on how often a client can call an API within a time window. | Example from our project: 10 requests per minute.
+
+**HTTP status code:** A standard numeric code that describes the result of an HTTP request. | Example from our project: `401` unauthorized, `422` validation error.
+
 ---
 
 ### ⚠️ SECTION 4: MISTAKES & LESSONS LOG
@@ -132,6 +180,15 @@
 - What happened: The patch failed because the file was empty.
 - Why it happened: Patching needs existing text to anchor changes.
 - How to avoid it next time: If a file is empty, write the entire file content in one operation.
+
+**Session 2 — Package installed into the wrong Python environment**
+- What happened: `slowapi` was installed but uvicorn still raised `ModuleNotFoundError: slowapi`.
+- Why it happened: The install went into global Python instead of the project `venv`.
+- How we fixed it: Installed using the venv interpreter and restarted uvicorn.
+
+**Session 2 — PowerShell curl alias confusion**
+- What happened: `curl` invoked Invoke-WebRequest and failed header parsing.
+- How we fixed it: Used `curl.exe` for GET and `Invoke-RestMethod` for POST requests.
 
 ---
 
@@ -207,6 +264,30 @@
 - Pass/Fail: Pass
 - Notes: Endpoint should be the base resource URL only (example pattern: `https://<resource>.openai.azure.com`).
 
+**[Session 2] — Test: API health check**
+- Request: GET /health
+- Expected: 200 with {"status": "ok"}
+- Actual: 200 with {"status": "ok"}
+- Pass/Fail: Pass
+
+**[Session 2] — Test: Order endpoint (valid key)**
+- Request: POST /api/v1/catering/order (valid JSON body)
+- Expected: 200 with `order_id` and `status=pending`
+- Actual: 200 with `order_id` and `status=pending`
+- Pass/Fail: Pass
+
+**[Session 2] — Test: Order endpoint (wrong key)**
+- Request: POST /api/v1/catering/order with wrong X-API-Key
+- Expected: 401
+- Actual: 401
+- Pass/Fail: Pass
+
+**[Session 2] — Test: Order endpoint (missing required fields)**
+- Request: POST /api/v1/catering/order missing `location`
+- Expected: 422
+- Actual: 422
+- Pass/Fail: Pass
+
 ---
 
 ### 🗺️ SECTION 7: DECISION LOG
@@ -220,6 +301,11 @@
 - Trade-offs: We delayed verifying OpenAI credentials until Step 7 (now verified).
 - Session: Session 1
 
+**Decision: Add rate limiting to the API early**
+- Why: Protects the endpoint from accidental or malicious request bursts.
+- What we chose: SlowAPI with 10 requests per minute.
+- Session: Session 2
+
 ---
 
 ### 🚀 SECTION 8: PROGRESS TRACKER
@@ -232,14 +318,14 @@
 [x] utils/validator.py — input validation helpers
 [x] Mock data files created (recipes.json, pricing.json, mock_inventory.json)
 [x] Azure OpenAI connection tested successfully
-[ ] Day 1 commit pushed to GitHub
+[x] Day 1 commit pushed to GitHub
 
 **Phase 2 — API Layer**
-[ ] api/models.py — Pydantic request/response models
-[ ] api/auth.py — API key authentication
-[ ] api/routes.py — POST /api/v1/catering/order endpoint
-[ ] main.py — FastAPI app with rate limiting
-[ ] API tested with a real request
+[x] api/models.py — Pydantic request/response models
+[x] api/auth.py — API key authentication
+[x] api/routes.py — POST /api/v1/catering/order endpoint
+[x] main.py — FastAPI app with rate limiting
+[x] API tested with a real request
 [ ] Day 2 commit pushed to GitHub
 
 **Phase 3 — Core Agents**

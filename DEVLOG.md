@@ -87,6 +87,44 @@
 - Blockers:
   - None
 
+#### Session 3 — 2026-04-20
+**What we built:**
+- Implemented first two core agents:
+  - agents/concierge.py
+    - Uses Azure OpenAI (GPT-4o deployment) to parse raw customer text into a validated `EventSpecification`
+    - Wraps the payload into our standard `AgentMessage` with message_type = "event_specification"
+    - Includes prompt injection protection in the system prompt
+    - Logs every action using `utils/logger.py`
+    - Uses try/except to return an `ErrorMessage` instead of crashing
+  - agents/head_chef.py
+    - Uses local Retrieval Augmented Generation (RAG) over `knowledge_base/recipes.json` (no Azure call)
+    - Filters recipes by allergies and excludes unsafe dishes (e.g., peanut dishes when allergy is nuts)
+    - Outputs a validated `AgentMessage` with message_type = "menu_plan"
+- Added tests:
+  - tests/test_agents.py
+    - Concierge isolation test (Azure call)
+    - Head Chef isolation test (no Azure call; uses stored EventSpecification payload)
+
+**What broke and how we fixed it:**
+- Patch tool error: "agents/concierge.py is an empty file. Perform a single replacement..."
+  - Cause: Context-based patching cannot anchor on an empty file.
+  - Fix: Wrote the full file contents in a single operation.
+
+**Azure resources used this session:**
+- Azure OpenAI (GPT-4o deployment) — Concierge parsing call during isolation test.
+
+**Git commits made:**
+- None yet (Day 3 commit will be done at the end of the session)
+
+**Status at end of session:**
+- What is working:
+  - Concierge generates `event_specification` with a validated schema (including allergies)
+  - Head Chef generates a `menu_plan` using the recipe knowledge base and respects nut allergy
+- What is not yet working:
+  - Agents are not yet wired into the FastAPI order endpoint
+- Blockers:
+  - None
+
 ---
 
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT
@@ -127,6 +165,26 @@
   - connect to Azure services when we’re ready
   - test agent logic using mock data before full Azure RAG is wired up
 
+#### Session 3 — 2026-04-20 — What I Learned
+**What a system prompt is (and why it matters):**
+- A system prompt is the agent’s highest-priority instruction — like the agent’s job contract and house rules.
+- It is the most important part because it sets role boundaries and forces consistent output formats for downstream code.
+
+**What prompt injection is (and how we defend against it):**
+- Prompt injection is when the user tries to trick the agent into ignoring its rules (e.g., “ignore your instructions” or “reveal secrets”).
+- We defend by:
+  - Putting explicit rules in the system prompt (treat user text as untrusted input; never reveal secrets; output JSON only)
+  - Validating the model output with Pydantic schemas (`EventSpecification`, then `AgentMessage`)
+  - Returning an `ErrorMessage` instead of crashing if anything is invalid
+
+**What RAG is (and why it matters for Head Chef):**
+- RAG (Retrieval Augmented Generation) means the agent looks up relevant information from a knowledge source before generating output.
+- In our system, Head Chef uses `knowledge_base/recipes.json` as the retrieval source, so it suggests dishes from our curated list instead of guessing.
+
+**How Concierge and Head Chef connect to each other:**
+- Concierge converts raw customer text into a normalized `EventSpecification` message.
+- Head Chef consumes that event specification and produces a `MenuPlan` message, while enforcing allergy rules (e.g., excluding peanut dishes for nut allergy).
+
 ---
 
 ### 🧠 SECTION 3: CONCEPT GLOSSARY
@@ -142,6 +200,10 @@
 **Pydantic:** A Python library that checks if data matches the expected format before we use it. Like a form that rejects your submission if you leave required fields blank. | Example from our project: All message schemas in `utils/json_schema.py`.
 
 **RAG:** Retrieval Augmented Generation — giving an AI agent access to a searchable knowledge base so it can look up real information instead of guessing. In our project: Head Chef looks up real recipes. | Example from our project: The recipes/pricing/suppliers JSON files are our early mock knowledge base.
+
+**System prompt:** The highest-priority instruction given to an AI agent that defines its role, boundaries, and output rules. Like a job contract the agent must follow even if the user asks otherwise. | Example from our project: Concierge’s system prompt requires JSON-only output and forbids revealing secrets.
+
+**Prompt injection:** A tactic where a user tries to trick an AI agent into breaking its rules (e.g., “ignore your instructions” or “reveal the API key”). We defend against it with strong system prompts and strict schema validation. | Example from our project: Concierge treats user text as untrusted input and still outputs a validated EventSpecification.
 
 **Virtual Environment (venv):** An isolated Python workspace for one project. Like a dedicated toolbox for this project only. | Example from our project: A venv may contain packages like `pydantic`, `openai`, and Azure SDKs.
 
@@ -288,6 +350,28 @@
 - Actual: 422
 - Pass/Fail: Pass
 
+**[Session 3] — Test: Concierge agent isolation (Azure OpenAI)**
+- Script: `python -m tests.test_agents` (Concierge step)
+- Input: Debut party request (150 guests, Filipino food, PHP 45,000, May 20 2026, Antipolo, nut allergy)
+- Expected:
+  - message_type = "event_specification"
+  - event_date normalized to YYYY-MM-DD
+  - allergies includes nuts
+- Actual:
+  - event_date: 2026-05-20
+  - allergies: ["nuts"]
+  - Pass/Fail: Pass
+
+**[Session 3] — Test: Head Chef agent isolation (local RAG over recipes.json)**
+- Script: `python -m tests.test_agents` (Head Chef step)
+- Expected:
+  - message_type = "menu_plan"
+  - Does NOT include Kare-Kare (peanut allergen)
+- Actual:
+  - Menu generated: Lumpiang Shanghai, Chicken Adobo, Pancit Canton, Laing, Buko Pandan
+  - Kare-Kare excluded
+  - Pass/Fail: Pass
+
 ---
 
 ### 🗺️ SECTION 7: DECISION LOG
@@ -326,11 +410,11 @@
 [x] api/routes.py — POST /api/v1/catering/order endpoint
 [x] main.py — FastAPI app with rate limiting
 [x] API tested with a real request
-[ ] Day 2 commit pushed to GitHub
+[x] Day 2 commit pushed to GitHub
 
 **Phase 3 — Core Agents**
-[ ] agents/concierge.py — working and tested
-[ ] agents/head_chef.py — working and tested
+[x] agents/concierge.py — working and tested
+[x] agents/head_chef.py — working and tested
 [ ] agents/accountant.py — working and tested
 [ ] agents/logistics.py — working and tested
 [ ] agents/stock_manager.py — working and tested

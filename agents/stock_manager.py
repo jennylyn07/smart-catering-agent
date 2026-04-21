@@ -29,15 +29,42 @@ AGENT_ID = "stock_manager"
 
 
 def _now_utc() -> datetime:
+    """Return the current UTC time.
+
+    Args:
+        None
+
+    Returns:
+        A timezone-aware UTC datetime.
+    """
     return datetime.now(timezone.utc)
 
 
 def _stable_hash(value: Any) -> str:
+    """Compute a stable SHA-256 hash for a JSON-serializable value.
+
+    Args:
+        value: Value to hash (Pydantic models should be converted before calling).
+
+    Returns:
+        Hex-encoded SHA-256 digest.
+    """
     encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
 
 def _wrap_message(*, payload: Any, message_type: str, target_agent: str, session_id: str) -> AgentMessage:
+    """Wrap a payload in the standard AgentMessage envelope.
+
+    Args:
+        payload: The message payload model or JSON-serializable object.
+        message_type: The message type string for the header.
+        target_agent: Downstream consumer agent identifier.
+        session_id: Correlation/session identifier for the request.
+
+    Returns:
+        A fully populated AgentMessage containing header, payload, metadata, and signature.
+    """
     header = MessageHeader(
         message_id=uuid4(),
         agent_id=AGENT_ID,
@@ -64,6 +91,17 @@ def _error_message(
     message: str,
     details: Optional[dict[str, Any]] = None,
 ) -> AgentMessage:
+    """Create an error AgentMessage for failures within this agent.
+
+    Args:
+        session_id: Correlation/session identifier for the request.
+        error_code: Stable error code for the failure class.
+        message: Human-readable error message.
+        details: Optional structured error details.
+
+    Returns:
+        An AgentMessage whose payload is an ErrorMessage.
+    """
     payload = ErrorMessage(error_code=error_code, message=message, agent_id=AGENT_ID, details=details or {})
     return _wrap_message(
         payload=payload,
@@ -74,6 +112,14 @@ def _error_message(
 
 
 def _load_inventory() -> list[dict[str, Any]]:
+    """Load the mock inventory data from disk.
+
+    Args:
+        None
+
+    Returns:
+        A list of inventory rows loaded from `data/mock_inventory.json`.
+    """
     path = Path(__file__).resolve().parents[1] / "data" / "mock_inventory.json"
     payload = json.loads(path.read_text(encoding="utf-8"))
     inv = payload.get("inventory")
@@ -83,6 +129,14 @@ def _load_inventory() -> list[dict[str, Any]]:
 
 
 def _build_inventory_index(inventory: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Build an index for quick lookup of inventory quantities by ingredient.
+
+    Args:
+        inventory: Inventory rows loaded from the inventory JSON.
+
+    Returns:
+        Mapping of ingredient name (lowercase) to normalized inventory row dict.
+    """
     index: dict[str, dict[str, Any]] = {}
     for row in inventory:
         ing = str(row.get("ingredient") or "").strip().lower()
@@ -98,6 +152,14 @@ def _build_inventory_index(inventory: list[dict[str, Any]]) -> dict[str, dict[st
 
 
 def _load_suppliers() -> list[dict[str, Any]]:
+    """Load supplier data from the suppliers knowledge base.
+
+    Args:
+        None
+
+    Returns:
+        A list of supplier dicts from `knowledge_base/suppliers.json`.
+    """
     path = Path(__file__).resolve().parents[1] / "knowledge_base" / "suppliers.json"
     payload = json.loads(path.read_text(encoding="utf-8"))
     suppliers = payload.get("suppliers")
@@ -107,6 +169,15 @@ def _load_suppliers() -> list[dict[str, Any]]:
 
 
 def _supplier_for_ingredient(ingredient: str, suppliers: list[dict[str, Any]]) -> tuple[Optional[str], Optional[int]]:
+    """Choose a supplier for an ingredient based on minimum lead time.
+
+    Args:
+        ingredient: Ingredient name to source.
+        suppliers: Supplier dicts loaded from suppliers.json.
+
+    Returns:
+        Tuple of (supplier_name, lead_time_days), either value may be None if not found.
+    """
     ing = ingredient.strip().lower()
     best_name: Optional[str] = None
     best_lead: Optional[int] = None
@@ -132,6 +203,14 @@ def _supplier_for_ingredient(ingredient: str, suppliers: list[dict[str, Any]]) -
 
 
 def _waste_risk(ingredient: str) -> bool:
+    """Heuristically determine whether an ingredient is likely to spoil quickly.
+
+    Args:
+        ingredient: Ingredient name.
+
+    Returns:
+        True if the ingredient is considered perishable; otherwise False.
+    """
     # Simple heuristic: fresh meats + vegetables are more perishable.
     perishable_keywords = [
         "chicken",
@@ -164,6 +243,16 @@ async def run_stock_manager(
     cost_report_message: AgentMessage,
     session_id: str,
 ) -> AgentMessage:
+    """Generate a ProcurementList by comparing required ingredients to inventory and suppliers.
+
+    Args:
+        logistics_plan_message: AgentMessage containing a LogisticsPlan payload.
+        cost_report_message: AgentMessage containing a CostReport payload.
+        session_id: Correlation/session identifier for the request.
+
+    Returns:
+        An AgentMessage containing a ProcurementList payload, or an ErrorMessage on failure.
+    """
     log_event(
         agent_id=AGENT_ID,
         action="build_procurement_list",

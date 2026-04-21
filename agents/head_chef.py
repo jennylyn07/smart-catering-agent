@@ -26,15 +26,42 @@ AGENT_ID = "head_chef"
 
 
 def _now_utc() -> datetime:
+    """Return the current UTC time.
+
+    Args:
+        None
+
+    Returns:
+        A timezone-aware UTC datetime.
+    """
     return datetime.now(timezone.utc)
 
 
 def _stable_hash(value: Any) -> str:
+    """Compute a stable SHA-256 hash for a JSON-serializable value.
+
+    Args:
+        value: Value to hash (Pydantic models should be converted before calling).
+
+    Returns:
+        Hex-encoded SHA-256 digest.
+    """
     encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
 
 def _wrap_message(*, payload: Any, message_type: str, target_agent: str, session_id: str) -> AgentMessage:
+    """Wrap a payload in the standard AgentMessage envelope.
+
+    Args:
+        payload: The message payload model or JSON-serializable object.
+        message_type: The message type string for the header.
+        target_agent: Downstream consumer agent identifier.
+        session_id: Correlation/session identifier for the request.
+
+    Returns:
+        A fully populated AgentMessage containing header, payload, metadata, and signature.
+    """
     header = MessageHeader(
         message_id=uuid4(),
         agent_id=AGENT_ID,
@@ -61,6 +88,17 @@ def _error_message(
     message: str,
     details: Optional[dict[str, Any]] = None,
 ) -> AgentMessage:
+    """Create an error AgentMessage for failures within this agent.
+
+    Args:
+        session_id: Correlation/session identifier for the request.
+        error_code: Stable error code for the failure class.
+        message: Human-readable error message.
+        details: Optional structured error details.
+
+    Returns:
+        An AgentMessage whose payload is an ErrorMessage.
+    """
     payload = ErrorMessage(error_code=error_code, message=message, agent_id=AGENT_ID, details=details or {})
     return _wrap_message(
         payload=payload,
@@ -71,6 +109,14 @@ def _error_message(
 
 
 def _system_prompt() -> str:
+    """Return the system prompt used to guide menu planning.
+
+    Args:
+        None
+
+    Returns:
+        A string system prompt describing safety and output constraints.
+    """
     return (
         "You are the Head Chef agent for a catering system. Your job is to produce a safe menu plan from an event specification and a trusted recipes knowledge base. "
         "You must follow these rules strictly:\n"
@@ -81,6 +127,14 @@ def _system_prompt() -> str:
 
 
 def _load_recipes() -> list[dict[str, Any]]:
+    """Load the recipes knowledge base from disk.
+
+    Args:
+        None
+
+    Returns:
+        A list of recipe dicts loaded from `knowledge_base/recipes.json`.
+    """
     path = Path(__file__).resolve().parents[1] / "knowledge_base" / "recipes.json"
     payload = json.loads(path.read_text(encoding="utf-8"))
     recipes = payload.get("recipes")
@@ -90,10 +144,26 @@ def _load_recipes() -> list[dict[str, Any]]:
 
 
 def _normalize_allergen(value: str) -> str:
+    """Normalize an allergen string into a canonical flag form.
+
+    Args:
+        value: Raw allergen text.
+
+    Returns:
+        Normalized allergen flag string.
+    """
     return normalize_dietary_flag(value)
 
 
 def _expand_allergy_terms(allergies: list[str]) -> set[str]:
+    """Expand allergy terms into a blocked-allergen set used for recipe filtering.
+
+    Args:
+        allergies: Raw allergy strings from the event specification.
+
+    Returns:
+        A set of normalized allergen terms that should be blocked.
+    """
     normalized = {_normalize_allergen(a) for a in allergies if str(a).strip()}
 
     expanded = set(normalized)
@@ -106,12 +176,30 @@ def _expand_allergy_terms(allergies: list[str]) -> set[str]:
 
 
 def _recipe_is_safe(recipe: dict[str, Any], blocked_allergens: set[str]) -> bool:
+    """Determine whether a recipe is safe given a set of blocked allergens.
+
+    Args:
+        recipe: Recipe dict with an optional `allergens` field.
+        blocked_allergens: Normalized allergen terms that must be excluded.
+
+    Returns:
+        True if the recipe allergens do not intersect blocked_allergens; otherwise False.
+    """
     allergens = recipe.get("allergens") or []
     normalized_allergens = {_normalize_allergen(a) for a in allergens}
     return normalized_allergens.isdisjoint(blocked_allergens)
 
 
 def _build_menu_items(*, recipes: list[dict[str, Any]], guest_count: int) -> list[MenuItem]:
+    """Select a small menu across key categories and build MenuItem objects.
+
+    Args:
+        recipes: Candidate safe recipe dicts.
+        guest_count: Number of guests to set servings for each dish.
+
+    Returns:
+        A list of MenuItem objects representing the proposed menu.
+    """
     desired_order = ["appetizer", "main", "noodles", "vegetable", "dessert"]
     selected: list[dict[str, Any]] = []
 
@@ -141,6 +229,15 @@ def _build_menu_items(*, recipes: list[dict[str, Any]], guest_count: int) -> lis
 
 
 def _filter_by_cuisine(recipes: list[dict[str, Any]], cuisine_preferences: list[str]) -> list[dict[str, Any]]:
+    """Filter recipes by preferred cuisines, falling back to the full list if none match.
+
+    Args:
+        recipes: List of recipe dicts.
+        cuisine_preferences: Normalized cuisine preference strings.
+
+    Returns:
+        A filtered list of recipes if matches exist; otherwise the original recipes list.
+    """
     if not cuisine_preferences:
         return recipes
 
@@ -149,7 +246,152 @@ def _filter_by_cuisine(recipes: list[dict[str, Any]], cuisine_preferences: list[
     return filtered or recipes
 
 
+async def revise_menu_plan(
+    *,
+    event_spec: EventSpecification,
+    previous_menu_plan_message: AgentMessage,
+    flagged_items: list[str],
+    session_id: str,
+) -> AgentMessage:
+    """Revise an existing menu plan by removing flagged dishes and selecting safe replacements.
+
+    Args:
+        event_spec: Event specification containing allergies and cuisine preferences.
+        previous_menu_plan_message: AgentMessage containing the previous MenuPlan payload.
+        flagged_items: Dish names to remove from the plan.
+        session_id: Correlation/session identifier for the request.
+
+    Returns:
+        An AgentMessage containing a revised MenuPlan payload, or an ErrorMessage on failure.
+    """
+    log_event(
+        agent_id=AGENT_ID,
+        action="revise_menu_plan",
+        status="started",
+        details={
+            "event_id": event_spec.event_id,
+            "flagged_items": flagged_items,
+            "dietary_restrictions": event_spec.dietary_restrictions,
+            "allergies": event_spec.allergies,
+        },
+    )
+
+    try:
+        if not isinstance(previous_menu_plan_message.payload, MenuPlan):
+            raise ValueError("previous_menu_plan_message payload must be a MenuPlan")
+
+        previous_plan: MenuPlan = previous_menu_plan_message.payload
+        flagged = {str(x).strip().lower() for x in flagged_items if str(x).strip()}
+
+        kept_items = [i for i in previous_plan.menu_items if i.name.strip().lower() not in flagged]
+        removed = [i.name for i in previous_plan.menu_items if i.name.strip().lower() in flagged]
+
+        recipes = _load_recipes()
+        recipes = _filter_by_cuisine(recipes, event_spec.cuisine_preferences)
+        blocked_allergens = _expand_allergy_terms(event_spec.allergies)
+        safe_recipes = [r for r in recipes if _recipe_is_safe(r, blocked_allergens)]
+
+        existing_categories = {str(i.category or "").strip().lower() for i in kept_items}
+        desired_categories = ["appetizer", "main", "noodles", "vegetable", "dessert"]
+
+        # Fill any missing categories with the first safe recipe not already used.
+        used_names = {i.name.strip().lower() for i in kept_items}
+        additions: list[MenuItem] = []
+        for cat in desired_categories:
+            if cat in existing_categories:
+                continue
+            for r in safe_recipes:
+                if str(r.get("category") or "").strip().lower() != cat:
+                    continue
+                name = str(r.get("name") or "").strip()
+                if not name:
+                    continue
+                if name.lower() in flagged:
+                    continue
+                if name.lower() in used_names:
+                    continue
+                ingredients = [str(i.get("name")) for i in (r.get("ingredients") or []) if i.get("name")]
+                additions.append(
+                    MenuItem(
+                        name=name,
+                        category=cat,
+                        servings=max(1, int(event_spec.guest_count)),
+                        ingredients=ingredients,
+                    )
+                )
+                used_names.add(name.lower())
+                break
+
+        revised_items = kept_items + additions
+        if not revised_items:
+            raise ValueError("Revision removed all menu items; cannot produce a valid menu")
+
+        plan = MenuPlan(
+            event_id=event_spec.event_id,
+            menu_items=revised_items,
+            rationale="Revised menu after budget review; removed flagged items while preserving allergy constraints.",
+            allergy_flags=sorted(blocked_allergens),
+        )
+
+        msg = _wrap_message(
+            payload=plan,
+            message_type="menu_plan",
+            target_agent="accountant",
+            session_id=session_id,
+        )
+
+        log_event(
+            agent_id=AGENT_ID,
+            action="revise_menu_plan",
+            status="success",
+            details={
+                "event_id": plan.event_id,
+                "removed_items": removed,
+                "added_items": [i.name for i in additions],
+                "menu_item_count": len(plan.menu_items),
+            },
+        )
+
+        return msg
+
+    except (OSError, json.JSONDecodeError, ValidationError, ValueError) as exc:
+        log_event(
+            agent_id=AGENT_ID,
+            action="revise_menu_plan",
+            status="error",
+            details={"error": str(exc)},
+        )
+        return _error_message(
+            session_id=session_id,
+            error_code="HEAD_CHEF_REVISION_ERROR",
+            message="Failed to revise menu plan.",
+            details={"error": str(exc)},
+        )
+    except Exception as exc:  # noqa: BLE001
+        log_event(
+            agent_id=AGENT_ID,
+            action="revise_menu_plan",
+            status="error",
+            details={"error": str(exc), "error_type": type(exc).__name__},
+        )
+        return _error_message(
+            session_id=session_id,
+            error_code="HEAD_CHEF_REVISION_UNEXPECTED_ERROR",
+            message="Unexpected error while revising menu plan.",
+            details={"error": str(exc), "error_type": type(exc).__name__},
+        )
+
+
 async def run_head_chef(*, event_spec: EventSpecification, session_id: str) -> AgentMessage:
+    """Generate a safe MenuPlan for an event using the local recipes knowledge base.
+
+    Args:
+        event_spec: Event specification containing guest count, allergies, and preferences.
+        session_id: Correlation/session identifier for the request.
+
+    Returns:
+        An AgentMessage containing a MenuPlan payload, or an ErrorMessage on failure.
+    """
     log_event(
         agent_id=AGENT_ID,
         action="create_menu_plan",

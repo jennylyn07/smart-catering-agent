@@ -30,15 +30,40 @@ AGENT_ID = "concierge"
 
 
 def _now_utc() -> datetime:
+    """Return the current UTC time.
+
+    Args:
+        None
+
+    Returns:
+        A timezone-aware UTC datetime.
+    """
     return datetime.now(timezone.utc)
 
 
 def _stable_hash(value: Any) -> str:
+    """Compute a stable SHA-256 hash for a JSON-serializable value.
+
+    Args:
+        value: Value to hash (Pydantic models should be converted before calling).
+
+    Returns:
+        Hex-encoded SHA-256 digest.
+    """
     encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
 
 def _normalize_list(values: list[str], normalizer: Any) -> list[str]:
+    """Normalize a list of strings and remove duplicates while preserving order.
+
+    Args:
+        values: Raw list of strings.
+        normalizer: Callable that normalizes a single string value.
+
+    Returns:
+        A de-duplicated list of normalized strings.
+    """
     normalized: list[str] = []
     for v in values:
         text = str(v).strip()
@@ -49,6 +74,14 @@ def _normalize_list(values: list[str], normalizer: Any) -> list[str]:
 
 
 def _coerce_event_spec(data: dict[str, Any]) -> EventSpecification:
+    """Validate and coerce raw model JSON into a strict EventSpecification.
+
+    Args:
+        data: Parsed JSON dict from the model response.
+
+    Returns:
+        A validated EventSpecification with normalized fields.
+    """
     guest_count = validate_guest_count(int(data["guest_count"]))
     budget_php = validate_budget_php(data.get("budget_php"))
     event_date = validate_event_date(str(data["event_date"]))
@@ -70,6 +103,17 @@ def _coerce_event_spec(data: dict[str, Any]) -> EventSpecification:
 
 
 def _wrap_message(*, payload: Any, message_type: str, target_agent: str, session_id: str) -> AgentMessage:
+    """Wrap a payload in the standard AgentMessage envelope.
+
+    Args:
+        payload: The message payload model or JSON-serializable object.
+        message_type: The message type string for the header.
+        target_agent: Downstream consumer agent identifier.
+        session_id: Correlation/session identifier for the request.
+
+    Returns:
+        A fully populated AgentMessage containing header, payload, metadata, and signature.
+    """
     message_id = uuid4()
     header = MessageHeader(
         message_id=message_id,
@@ -97,6 +141,17 @@ def _error_message(
     message: str,
     details: Optional[dict[str, Any]] = None,
 ) -> AgentMessage:
+    """Create an error AgentMessage for failures within this agent.
+
+    Args:
+        session_id: Correlation/session identifier for the request.
+        error_code: Stable error code for the failure class.
+        message: Human-readable error message.
+        details: Optional structured error details.
+
+    Returns:
+        An AgentMessage whose payload is an ErrorMessage.
+    """
     payload = ErrorMessage(error_code=error_code, message=message, agent_id=AGENT_ID, details=details or {})
     return _wrap_message(
         payload=payload,
@@ -107,6 +162,14 @@ def _error_message(
 
 
 def _system_prompt() -> str:
+    """Return the system prompt used to constrain the Concierge LLM call.
+
+    Args:
+        None
+
+    Returns:
+        A string system prompt describing rules and expected output format.
+    """
     return (
         "You are the Concierge agent for a catering system. Your job is to extract a clean event specification from raw customer text. "
         "You must follow these rules strictly:\n"
@@ -122,6 +185,14 @@ def _system_prompt() -> str:
 
 
 def _user_prompt(raw_customer_text: str) -> str:
+    """Build the user prompt that asks the model to output EventSpecification JSON.
+
+    Args:
+        raw_customer_text: Raw customer request text.
+
+    Returns:
+        A prompt string that includes a schema hint and the customer text.
+    """
     schema_hint = {
         "event_id": "<string>",
         "event_name": None,
@@ -143,6 +214,15 @@ def _user_prompt(raw_customer_text: str) -> str:
 
 
 async def run_concierge(*, raw_customer_text: str, session_id: str) -> AgentMessage:
+    """Parse raw customer text into an EventSpecification using Azure OpenAI.
+
+    Args:
+        raw_customer_text: Unstructured customer request text.
+        session_id: Correlation/session identifier for the request.
+
+    Returns:
+        An AgentMessage containing an EventSpecification payload, or an ErrorMessage on failure.
+    """
     log_event(
         agent_id=AGENT_ID,
         action="parse_customer_request",

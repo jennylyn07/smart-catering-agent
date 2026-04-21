@@ -28,6 +28,14 @@ class _JsonLineFormatter(logging.Formatter):
     """Format log records as one-line JSON objects."""
 
     def format(self, record: logging.LogRecord) -> str:  # noqa: A003
+        """Format a LogRecord into a JSON string.
+
+        Args:
+            record: Standard library logging record to format.
+
+        Returns:
+            A single-line JSON string containing the structured log payload.
+        """
         payload: dict[str, Any] = {
             "timestamp": _utc_iso_timestamp(),
             "level": record.levelname,

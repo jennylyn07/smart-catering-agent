@@ -28,15 +28,42 @@ AGENT_ID = "accountant"
 
 
 def _now_utc() -> datetime:
+    """Return the current UTC time.
+
+    Args:
+        None
+
+    Returns:
+        A timezone-aware UTC datetime.
+    """
     return datetime.now(timezone.utc)
 
 
 def _stable_hash(value: Any) -> str:
+    """Compute a stable SHA-256 hash for a JSON-serializable value.
+
+    Args:
+        value: Value to hash (Pydantic models should be converted before calling).
+
+    Returns:
+        Hex-encoded SHA-256 digest.
+    """
     encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
 
 def _wrap_message(*, payload: Any, message_type: str, target_agent: str, session_id: str) -> AgentMessage:
+    """Wrap a payload in the standard AgentMessage envelope.
+
+    Args:
+        payload: The message payload model or JSON-serializable object.
+        message_type: The message type string for the header.
+        target_agent: Downstream consumer agent identifier.
+        session_id: Correlation/session identifier for the request.
+
+    Returns:
+        A fully populated AgentMessage containing header, payload, metadata, and signature.
+    """
     header = MessageHeader(
         message_id=uuid4(),
         agent_id=AGENT_ID,
@@ -63,6 +90,17 @@ def _error_message(
     message: str,
     details: Optional[dict[str, Any]] = None,
 ) -> AgentMessage:
+    """Create an error AgentMessage for failures within this agent.
+
+    Args:
+        session_id: Correlation/session identifier for the request.
+        error_code: Stable error code for the failure class.
+        message: Human-readable error message.
+        details: Optional structured error details.
+
+    Returns:
+        An AgentMessage whose payload is an ErrorMessage.
+    """
     payload = ErrorMessage(error_code=error_code, message=message, agent_id=AGENT_ID, details=details or {})
     return _wrap_message(
         payload=payload,
@@ -73,6 +111,14 @@ def _error_message(
 
 
 def _load_pricing() -> list[dict[str, Any]]:
+    """Load the ingredient pricing knowledge base from disk.
+
+    Args:
+        None
+
+    Returns:
+        A list of pricing rows loaded from `knowledge_base/pricing.json`.
+    """
     path = Path(__file__).resolve().parents[1] / "knowledge_base" / "pricing.json"
     payload = json.loads(path.read_text(encoding="utf-8"))
     items = payload.get("items")
@@ -82,6 +128,14 @@ def _load_pricing() -> list[dict[str, Any]]:
 
 
 def _load_recipes() -> list[dict[str, Any]]:
+    """Load the recipes knowledge base from disk.
+
+    Args:
+        None
+
+    Returns:
+        A list of recipe dicts loaded from `knowledge_base/recipes.json`.
+    """
     path = Path(__file__).resolve().parents[1] / "knowledge_base" / "recipes.json"
     payload = json.loads(path.read_text(encoding="utf-8"))
     recipes = payload.get("recipes")
@@ -91,6 +145,14 @@ def _load_recipes() -> list[dict[str, Any]]:
 
 
 def _pricing_lookup(items: list[dict[str, Any]]) -> dict[tuple[str, str], float]:
+    """Build a lookup table mapping (ingredient, unit) to unit price.
+
+    Args:
+        items: Pricing rows loaded from pricing.json.
+
+    Returns:
+        Dictionary keyed by (ingredient_lower, unit) with float price values.
+    """
     lookup: dict[tuple[str, str], float] = {}
     for row in items:
         ingredient = str(row.get("ingredient") or "").strip().lower()
@@ -105,6 +167,15 @@ def _pricing_lookup(items: list[dict[str, Any]]) -> dict[tuple[str, str], float]
 
 
 def _find_recipe_by_name(recipes: list[dict[str, Any]], dish_name: str) -> Optional[dict[str, Any]]:
+    """Find a recipe dict by its dish name (case-insensitive).
+
+    Args:
+        recipes: List of recipe dicts.
+        dish_name: Name of the dish to look up.
+
+    Returns:
+        The matching recipe dict if found; otherwise None.
+    """
     target = dish_name.strip().lower()
     for r in recipes:
         if str(r.get("name") or "").strip().lower() == target:
@@ -115,11 +186,29 @@ def _find_recipe_by_name(recipes: list[dict[str, Any]], dish_name: str) -> Optio
 def _ingredient_unit_price(
     *, pricing: dict[tuple[str, str], float], ingredient: str, unit: str
 ) -> Optional[float]:
+    """Look up the unit price for a specific ingredient and unit.
+
+    Args:
+        pricing: Pricing lookup table keyed by (ingredient, unit).
+        ingredient: Ingredient name.
+        unit: Unit string (e.g., "kg", "L").
+
+    Returns:
+        Unit price if found; otherwise None.
+    """
     key = (ingredient.strip().lower(), unit.strip())
     return pricing.get(key)
 
 
 def _estimate_scale_factor(*, servings: int) -> float:
+    """Estimate a recipe scaling factor relative to a fixed base serving size.
+
+    Args:
+        servings: Target number of servings.
+
+    Returns:
+        Scale factor (>= 1.0) used to multiply base ingredient quantities.
+    """
     base_servings = 50
     return max(1.0, float(servings) / float(base_servings))
 
@@ -127,6 +216,16 @@ def _estimate_scale_factor(*, servings: int) -> float:
 def _suggest_alternative(
     *, pricing: list[dict[str, Any]], ingredient: str, unit: str
 ) -> Optional[AlternativeRecommendation]:
+    """Suggest a cheaper alternative ingredient with the same unit.
+
+    Args:
+        pricing: Raw pricing rows loaded from pricing.json.
+        ingredient: Ingredient name to replace.
+        unit: Unit string that must match.
+
+    Returns:
+        An AlternativeRecommendation if a lower-priced candidate exists; otherwise None.
+    """
     candidates = [
         r
         for r in pricing
@@ -151,6 +250,16 @@ async def run_accountant(
     event_spec: EventSpecification,
     session_id: str,
 ) -> AgentMessage:
+    """Calculate a CostReport for a menu plan using local pricing and recipes data.
+
+    Args:
+        menu_plan_message: AgentMessage containing a MenuPlan payload.
+        event_spec: Normalized event specification including guest count and budget.
+        session_id: Correlation/session identifier for the request.
+
+    Returns:
+        An AgentMessage containing a CostReport payload, or an ErrorMessage on failure.
+    """
     log_event(
         agent_id=AGENT_ID,
         action="calculate_cost_report",
@@ -212,7 +321,13 @@ async def run_accountant(
 
             dish_costs.append(DishCost(dish_name=dish.name, cost_php=dish_total))
 
-        total_cost = sum(d.cost_php for d in dish_costs)
+        ingredients_cost = sum(d.cost_php for d in dish_costs)
+
+        overhead_rate = 1.20
+        profit_rate = 0.30
+        overhead_cost = ingredients_cost * overhead_rate
+        profit_cost = (ingredients_cost + overhead_cost) * profit_rate
+        total_cost = ingredients_cost + overhead_cost + profit_cost
         budget = event_spec.budget_php
 
         is_within_budget: Optional[bool]
@@ -227,10 +342,13 @@ async def run_accountant(
         recommended: list[AlternativeRecommendation] = []
 
         if is_within_budget is False:
+            # Flag expensive dishes (so Head Chef can remove them by name during negotiation).
+            by_dish_cost = sorted(dish_costs, key=lambda d: d.cost_php, reverse=True)
+            flagged_items = [d.dish_name for d in by_dish_cost[:2]]
+
+            # Keep ingredient-level alternative hints to support future improvements.
             by_subtotal = sorted(line_items, key=lambda li: li.subtotal_php, reverse=True)
             top = by_subtotal[:5]
-            flagged_items = [li.item for li in top]
-
             for li in top:
                 alt = _suggest_alternative(pricing=pricing_items, ingredient=li.item, unit=li.unit)
                 if alt is not None:
@@ -247,7 +365,7 @@ async def run_accountant(
             flagged_items=flagged_items,
             recommended_alternatives=recommended,
             line_items=line_items,
-            notes=None,
+            notes=f"Includes overhead (rate={overhead_rate}) and profit margin (rate={profit_rate}) on top of ingredient costs.",
         )
 
         msg = _wrap_message(

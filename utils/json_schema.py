@@ -242,6 +242,8 @@ class FinalPlan(BaseModel):
     logistics_plan: LogisticsPlan
     procurement_list: ProcurementList
     customer_summary: str
+    total_processing_time_seconds: float = Field(default=0, ge=0)
+    negotiation_rounds_used: int = Field(default=0, ge=0)
 
 
 class ErrorMessage(BaseModel):

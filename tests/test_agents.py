@@ -12,6 +12,14 @@ from utils.json_schema import AgentMessage, EventSpecification, MenuItem, MenuPl
 
 
 async def _main() -> None:
+    """Run local agent tests and print their outputs.
+
+    Args:
+        None
+
+    Returns:
+        None
+    """
     session_id = str(uuid4())
 
     run_concierge_step = False

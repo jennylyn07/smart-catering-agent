@@ -26,15 +26,42 @@ AGENT_ID = "logistics"
 
 
 def _now_utc() -> datetime:
+    """Return the current UTC time.
+
+    Args:
+        None
+
+    Returns:
+        A timezone-aware UTC datetime.
+    """
     return datetime.now(timezone.utc)
 
 
 def _stable_hash(value: Any) -> str:
+    """Compute a stable SHA-256 hash for a JSON-serializable value.
+
+    Args:
+        value: Value to hash (Pydantic models should be converted before calling).
+
+    Returns:
+        Hex-encoded SHA-256 digest.
+    """
     encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
 
 def _wrap_message(*, payload: Any, message_type: str, target_agent: str, session_id: str) -> AgentMessage:
+    """Wrap a payload in the standard AgentMessage envelope.
+
+    Args:
+        payload: The message payload model or JSON-serializable object.
+        message_type: The message type string for the header.
+        target_agent: Downstream consumer agent identifier.
+        session_id: Correlation/session identifier for the request.
+
+    Returns:
+        A fully populated AgentMessage containing header, payload, metadata, and signature.
+    """
     header = MessageHeader(
         message_id=uuid4(),
         agent_id=AGENT_ID,
@@ -61,6 +88,17 @@ def _error_message(
     message: str,
     details: Optional[dict[str, Any]] = None,
 ) -> AgentMessage:
+    """Create an error AgentMessage for failures within this agent.
+
+    Args:
+        session_id: Correlation/session identifier for the request.
+        error_code: Stable error code for the failure class.
+        message: Human-readable error message.
+        details: Optional structured error details.
+
+    Returns:
+        An AgentMessage whose payload is an ErrorMessage.
+    """
     payload = ErrorMessage(error_code=error_code, message=message, agent_id=AGENT_ID, details=details or {})
     return _wrap_message(
         payload=payload,
@@ -71,6 +109,14 @@ def _error_message(
 
 
 def _parse_event_datetime(value: str) -> datetime:
+    """Parse an ISO-8601 datetime string that includes a timezone offset.
+
+    Args:
+        value: ISO datetime string (must include timezone offset).
+
+    Returns:
+        A timezone-aware datetime.
+    """
     text = value.strip()
     dt = datetime.fromisoformat(text)
     if dt.tzinfo is None:
@@ -79,10 +125,26 @@ def _parse_event_datetime(value: str) -> datetime:
 
 
 def _fmt(dt: datetime) -> str:
+    """Format a datetime as an ISO-8601 string.
+
+    Args:
+        dt: Datetime value.
+
+    Returns:
+        ISO formatted datetime string.
+    """
     return dt.isoformat()
 
 
 def _load_suppliers() -> list[dict[str, Any]]:
+    """Load supplier data from the suppliers knowledge base.
+
+    Args:
+        None
+
+    Returns:
+        A list of supplier dicts from `knowledge_base/suppliers.json`.
+    """
     path = Path(__file__).resolve().parents[1] / "knowledge_base" / "suppliers.json"
     payload = json.loads(path.read_text(encoding="utf-8"))
     suppliers = payload.get("suppliers")
@@ -92,6 +154,14 @@ def _load_suppliers() -> list[dict[str, Any]]:
 
 
 def _build_lead_time_index(suppliers: list[dict[str, Any]]) -> dict[str, int]:
+    """Build a map of product name to maximum lead time across suppliers.
+
+    Args:
+        suppliers: Supplier dicts with `products` and `lead_time_days`.
+
+    Returns:
+        Mapping of product name (lowercase) to lead time in days.
+    """
     index: dict[str, int] = {}
     for s in suppliers:
         lead = int(s.get("lead_time_days") or 0)
@@ -105,6 +175,14 @@ def _build_lead_time_index(suppliers: list[dict[str, Any]]) -> dict[str, int]:
 
 
 def _identify_long_lead_items(cost_report: CostReport) -> list[str]:
+    """Identify line items that require long lead-time procurement.
+
+    Args:
+        cost_report: CostReport whose line_items drive procurement needs.
+
+    Returns:
+        Sorted list of ingredient names that have lead time >= 2 days.
+    """
     suppliers = _load_suppliers()
     lead_index = _build_lead_time_index(suppliers)
 
@@ -118,6 +196,14 @@ def _identify_long_lead_items(cost_report: CostReport) -> list[str]:
 
 
 def _identify_most_prep_dishes(cost_report: CostReport) -> list[str]:
+    """Pick the most prep-intensive dishes using dish cost as a simple heuristic.
+
+    Args:
+        cost_report: CostReport containing per-dish costs.
+
+    Returns:
+        A list of dish names representing the top prep-intensive candidates.
+    """
     if not cost_report.cost_per_dish:
         return []
 
@@ -126,6 +212,14 @@ def _identify_most_prep_dishes(cost_report: CostReport) -> list[str]:
 
 
 def _timeline_from_event(event_dt: datetime) -> list[TimelineTask]:
+    """Create a backwards-planned timeline of tasks leading up to the event.
+
+    Args:
+        event_dt: Event datetime.
+
+    Returns:
+        A list of TimelineTask entries sorted ascending by time.
+    """
     checkpoints = [
         (timedelta(hours=48), "Confirm final guest count", "concierge"),
         (timedelta(hours=24), "All ingredients procured", "stock_manager"),
@@ -150,6 +244,16 @@ async def run_logistics(
     event_datetime_iso: str,
     session_id: str,
 ) -> AgentMessage:
+    """Generate a LogisticsPlan from a CostReport and an event datetime.
+
+    Args:
+        cost_report_message: AgentMessage containing a CostReport payload.
+        event_datetime_iso: ISO datetime string including timezone offset.
+        session_id: Correlation/session identifier for the request.
+
+    Returns:
+        An AgentMessage containing a LogisticsPlan payload, or an ErrorMessage on failure.
+    """
     log_event(
         agent_id=AGENT_ID,
         action="build_logistics_plan",

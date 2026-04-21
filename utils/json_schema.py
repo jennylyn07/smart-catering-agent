@@ -102,15 +102,35 @@ class CostLineItem(BaseModel):
     subtotal_php: float = Field(ge=0)
 
 
+class DishCost(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    dish_name: str
+    cost_php: float = Field(ge=0)
+
+
+class AlternativeRecommendation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    item: str
+    recommended_item: str
+    reason: Optional[str] = None
+
+
 class CostReport(BaseModel):
     """Cost calculation produced by the Accountant agent."""
 
     model_config = ConfigDict(extra="forbid")
 
     event_id: str
+    cost_per_dish: List[DishCost] = Field(default_factory=list)
     total_cost_php: float = Field(ge=0)
     budget_php: Optional[float] = Field(default=None, ge=0)
     within_budget: Optional[bool] = None
+    is_within_budget: Optional[bool] = None
+    over_budget_by_php: float = Field(default=0, ge=0)
+    flagged_items: List[str] = Field(default_factory=list)
+    recommended_alternatives: List[AlternativeRecommendation] = Field(default_factory=list)
     line_items: List[CostLineItem] = Field(default_factory=list)
     notes: Optional[str] = None
 
@@ -125,6 +145,22 @@ class DeliveryStop(BaseModel):
     eta: Optional[str] = None
 
 
+class TimelineTask(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    time: str
+    description: str
+    owner: str
+
+
+class DeliveryWindow(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    start_time: str
+    end_time: str
+    notes: Optional[str] = None
+
+
 class LogisticsPlan(BaseModel):
     """Timeline and routing produced by the Logistics Lead agent."""
 
@@ -133,6 +169,10 @@ class LogisticsPlan(BaseModel):
     event_id: str
     prep_start_time: str
     delivery_time: str
+    timeline: List[TimelineTask] = Field(default_factory=list)
+    critical_path_items: List[str] = Field(default_factory=list)
+    delivery_windows: List[DeliveryWindow] = Field(default_factory=list)
+    buffer_time_minutes: int = Field(default=30, ge=1)
     route: List[DeliveryStop] = Field(default_factory=list)
     staffing_notes: Optional[str] = None
 
@@ -149,13 +189,43 @@ class ProcurementItem(BaseModel):
     to_buy_quantity: float = Field(ge=0)
 
 
+class StockItem(BaseModel):
+    """A simple stock record (what we already have on-hand)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    ingredient: str
+    quantity: float = Field(ge=0)
+    unit: str
+
+
+class PurchaseItem(BaseModel):
+    """A procurement purchase recommendation line."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    ingredient: str
+    quantity: float = Field(ge=0)
+    unit: str
+    estimated_cost_php: float = Field(ge=0)
+    suggested_supplier: Optional[str] = None
+    lead_time_days: Optional[int] = Field(default=None, ge=0)
+
+
 class ProcurementList(BaseModel):
     """Procurement output produced by the Stock Manager agent."""
 
     model_config = ConfigDict(extra="forbid")
 
     event_id: str
-    items: List[ProcurementItem]
+    items_in_stock: List[StockItem] = Field(default_factory=list)
+    items_to_purchase: List[PurchaseItem] = Field(default_factory=list)
+    out_of_stock_alerts: List[str] = Field(default_factory=list)
+    waste_risk_items: List[str] = Field(default_factory=list)
+    total_procurement_cost_php: float = Field(default=0, ge=0)
+
+    # Backward-compatible fields from earlier iterations
+    items: List[ProcurementItem] = Field(default_factory=list)
     preferred_suppliers: List[str] = Field(default_factory=list)
     waste_minimization_notes: Optional[str] = None
 

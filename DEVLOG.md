@@ -372,6 +372,48 @@
   - Kare-Kare excluded
   - Pass/Fail: Pass
 
+**[Session 4] — Test: Accountant agent isolation (local pricing.json)**
+- Script: `python -m tests.test_agents` (Accountant step)
+- Scenarios:
+  - Scenario A: Comfortable budget (budget set high)
+  - Scenario B: Tight budget (budget set low to force over-budget path)
+- Expected:
+  - message_type = "cost_report"
+  - total_cost_php computed from local pricing
+  - over-budget scenario populates flagged_items + recommended_alternatives
+- Actual:
+  - Cost report produced and validated in both scenarios
+  - Pass/Fail: Pass
+
+**[Session 4] — Test: Logistics Lead agent isolation (local backward timeline)**
+- Script: `python -m tests.test_agents` (Logistics step)
+- Input: Scenario B cost_report + `event_datetime_iso="2026-05-20T18:00:00+08:00"`
+- Expected:
+  - message_type = "logistics_plan"
+  - timeline sorted ascending
+  - delivery window includes buffer
+- Actual:
+  - prep_start_time: 2026-05-20T06:00:00+08:00
+  - delivery_time: 2026-05-20T16:00:00+08:00
+  - buffer_time_minutes: 45
+  - Pass/Fail: Pass
+
+**[Session 4] — Test: Stock Manager agent isolation (local inventory + suppliers)**
+- Script: `python -m tests.test_agents` (Stock Manager step)
+- Input: logistics_plan + cost_report
+- Expected:
+  - message_type = "procurement_list"
+  - items_to_purchase computed as required - in_stock
+  - total_procurement_cost_php computed from cost_report unit prices
+- Actual:
+  - Procurement list produced with suggested supplier + lead_time_days for purchase items
+  - Pass/Fail: Pass
+
+**[Session 4] — Test: Local 4-agent chain (no Azure calls)**
+- Chain: Head Chef → Accountant → Logistics → Stock Manager
+- Note: Concierge step disabled (`run_concierge_step = False`) to avoid Azure credit usage
+- Pass/Fail: Pass
+
 ---
 
 ### 🗺️ SECTION 7: DECISION LOG
@@ -415,9 +457,9 @@
 **Phase 3 — Core Agents**
 [x] agents/concierge.py — working and tested
 [x] agents/head_chef.py — working and tested
-[ ] agents/accountant.py — working and tested
-[ ] agents/logistics.py — working and tested
-[ ] agents/stock_manager.py — working and tested
+[x] agents/accountant.py — working and tested
+[x] agents/logistics.py — working and tested
+[x] agents/stock_manager.py — working and tested
 [ ] Day 3-4 commits pushed to GitHub
 
 **Phase 4 — Orchestration**

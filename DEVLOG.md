@@ -179,6 +179,38 @@
 **Git commits made:**
 - Pending (will be committed after DEVLOG update)
 
+#### Session 6 — 2026-04-22
+**What we built (bonus features):**
+- **RAG Integration (Azure AI Search):**
+  - Added `scripts/setup_search_index.py` to create/update the `catering-knowledge-base` index and upload knowledge base documents.
+  - Updated Head Chef to retrieve candidate recipes from Azure AI Search (with safe fallback to local `knowledge_base/recipes.json`).
+- **Shared Memory:**
+  - Implemented `memory/shared_memory.py` for session-scoped shared context with immutable dietary restrictions and allergies.
+  - Wired shared memory into `orchestrator/engine.py` and enforced that allergies/dietary restrictions cannot change during orchestration.
+- **Real-Time Adaptation:**
+  - Added `POST /api/v1/catering/adapt` to re-plan from the correct agent onward (guest count, budget, dietary additions).
+- **Multi-Event Optimization:**
+  - Added `POST /api/v1/catering/multi-order` (up to 3 orders) and a shared procurement optimization summary.
+  - Added an explicit acknowledgement gate to warn before potential Azure OpenAI calls.
+- **Cosmos DB persistence:**
+  - Persist successful `FinalPlan` documents to Cosmos DB.
+  - Persist adaptation events and updated plans to Cosmos DB.
+
+**Testing results:**
+- `python -m tests.test_agents` passed (exit code 0).
+
+**Azure resources used this session:**
+- None executed during development (Azure calls occur only when scripts/endpoints are run).
+
+**Status at end of session:**
+- What is working:
+  - Head Chef supports RAG-based recipe retrieval with fallback and keeps existing allergy filtering intact.
+  - Shared memory captures agent outputs and negotiation history and blocks overrides of allergies/dietary restrictions.
+  - Adaptation and multi-order endpoints are implemented and API-key protected.
+  - Cosmos persistence wiring is in place for final plans and adaptation events.
+- Blockers:
+  - None.
+
 ---
 
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT
@@ -239,6 +271,25 @@
 - Concierge converts raw customer text into a normalized `EventSpecification` message.
 - Head Chef consumes that event specification and produces a `MenuPlan` message, while enforcing allergy rules (e.g., excluding peanut dishes for nut allergy).
 
+#### Session 6 — 2026-04-22 — What I Learned
+**What Azure AI Search RAG adds (and why it improves menu planning):**
+- RAG (Retrieval Augmented Generation) means we search a curated knowledge base first, then generate a plan using the retrieved results.
+- In our system, Azure AI Search acts as the retrieval engine so Head Chef can fetch the most relevant recipes quickly and consistently.
+
+**What an index is (in search terminology):**
+- An index is the search service’s organized structure for documents and fields so queries can return relevant matches fast.
+- In our system, the `catering-knowledge-base` index stores documents from recipes, pricing, and suppliers.
+
+**What shared memory is (and why dietary restrictions are immutable):**
+- Shared memory is a session-scoped store that every agent can read/write during one pipeline run.
+- We make `dietary_restrictions` and `allergies` immutable after first write so upstream safety constraints cannot be overridden later in the pipeline.
+
+**What real-time adaptation means:**
+- Real-time adaptation lets us update an existing plan by re-running only the affected agents (instead of restarting from scratch).
+
+**What multi-event optimization achieves:**
+- Multi-event optimization runs multiple orders and then aggregates procurement so shared ingredients can be bulk-optimized.
+
 ---
 
 ### 🧠 SECTION 3: CONCEPT GLOSSARY
@@ -253,7 +304,19 @@
 
 **Pydantic:** A Python library that checks if data matches the expected format before we use it. Like a form that rejects your submission if you leave required fields blank. | Example from our project: All message schemas in `utils/json_schema.py`.
 
-**RAG:** Retrieval Augmented Generation — giving an AI agent access to a searchable knowledge base so it can look up real information instead of guessing. In our project: Head Chef looks up real recipes. | Example from our project: The recipes/pricing/suppliers JSON files are our early mock knowledge base.
+**RAG:** Retrieval Augmented Generation — giving an AI agent access to a searchable knowledge base so it can look up real information instead of guessing. In our project: Head Chef retrieves recipes from Azure AI Search (with fallback to local JSON). | Example from our project: `catering-knowledge-base` index is queried to fetch relevant recipes.
+
+**Azure AI Search:** A managed search service that stores documents and returns the most relevant matches for a query. In our project: used as the RAG knowledge base for recipes/pricing/suppliers.
+
+**Index (Search):** A structured collection of searchable documents with defined fields. In our project: `catering-knowledge-base`.
+
+**Shared memory:** A session-scoped store used by multiple agents to share context and outputs across a pipeline run. In our project: `memory/shared_memory.py` stores immutable allergies/dietary restrictions, negotiation history, and agent outputs.
+
+**Real-time adaptation:** Updating an existing plan by re-running only the affected part of the pipeline when a change occurs (guest count, budget, dietary additions). In our project: `POST /api/v1/catering/adapt`.
+
+**Multi-event optimization:** Running multiple events and optimizing shared resources (starting with procurement) across them. In our project: `POST /api/v1/catering/multi-order` produces a `MultiEventPlan` with shared procurement optimization.
+
+**Cosmos DB:** A managed NoSQL database service used for persistence. In our project: stores each `FinalPlan` and adaptation events in the `catering-orders` container.
 
 **System prompt:** The highest-priority instruction given to an AI agent that defines its role, boundaries, and output rules. Like a job contract the agent must follow even if the user asks otherwise. | Example from our project: Concierge’s system prompt requires JSON-only output and forbids revealing secrets.
 

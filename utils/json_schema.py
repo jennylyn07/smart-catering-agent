@@ -246,6 +246,28 @@ class FinalPlan(BaseModel):
     negotiation_rounds_used: int = Field(default=0, ge=0)
 
 
+class ProcurementOptimizationSummary(BaseModel):
+    """Summary of bulk procurement optimization across multiple events."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    shared_ingredients: List[str] = Field(default_factory=list)
+    original_total_procurement_cost_php: float = Field(default=0, ge=0)
+    optimized_total_procurement_cost_php: float = Field(default=0, ge=0)
+    estimated_savings_php: float = Field(default=0, ge=0)
+    notes: Optional[str] = None
+
+
+class MultiEventPlan(BaseModel):
+    """Multi-event output containing individual plans and shared procurement optimization."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    plans: List[FinalPlan]
+    optimized_shared_procurement: List[PurchaseItem] = Field(default_factory=list)
+    procurement_optimization_summary: ProcurementOptimizationSummary
+
+
 class ErrorMessage(BaseModel):
     """Standard error payload when a step fails but the system continues."""
 
@@ -264,6 +286,7 @@ AgentPayload = Union[
     LogisticsPlan,
     ProcurementList,
     FinalPlan,
+    MultiEventPlan,
     ErrorMessage,
 ]
 

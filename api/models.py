@@ -13,6 +13,8 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from utils.adaptation import AdaptationChangeType
+
 
 class OrderStatus(str, Enum):
     """Allowed states for a catering order."""
@@ -47,6 +49,25 @@ class CateringOrderRequest(BaseModel):
     allergies: List[str] = Field(default_factory=list)
 
     notes: Optional[str] = None
+
+
+class CateringAdaptRequest(BaseModel):
+    """Incoming request body for adapting an existing catering order."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    order_id: str
+    change_type: AdaptationChangeType
+    new_value: Any
+
+
+class CateringMultiOrderRequest(BaseModel):
+    """Incoming request body for running multiple catering orders in one request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    orders: List[CateringOrderRequest] = Field(..., min_length=1, max_length=3)
+    acknowledge_azure_openai: bool = False
 
 
 class CateringOrderResponse(BaseModel):

@@ -15,6 +15,8 @@ from agents.concierge import run_concierge
 from agents.head_chef import revise_menu_plan, run_head_chef
 from agents.logistics import run_logistics
 from agents.stock_manager import run_stock_manager
+from memory.shared_memory import SharedMemory
+from utils.adaptation import AdaptationChangeType
 from utils.json_schema import (
     AgentMessage,
     CostReport,
@@ -204,6 +206,233 @@ class SharedContext:
     negotiation_round: int = 0
 
 
+def _payload_to_memory(value: Any) -> Any:
+    """Convert a Pydantic model payload to JSON-serializable data for SharedMemory."""
+
+    if hasattr(value, "model_dump"):
+        return value.model_dump()
+    return value
+
+
+def _wrap_menu_plan_for_accountant(*, menu_plan: MenuPlan, session_id: str) -> AgentMessage:
+    """Wrap a stored MenuPlan into an AgentMessage acceptable to downstream agents."""
+
+    return _wrap_message(
+        payload=menu_plan,
+        message_type="menu_plan",
+        target_agent="accountant",
+        session_id=session_id,
+    )
+
+
+async def adapt_from_existing_plan(
+    *,
+    existing_plan: FinalPlan,
+    change_type: AdaptationChangeType,
+    new_value: Any,
+    order_id: str,
+) -> AgentMessage:
+    """Adapt an existing FinalPlan based on a structured change request.
+
+    This re-runs only the impacted portion of the pipeline and returns a new FinalPlan.
+    """
+
+    start = time.perf_counter()
+    session_id = str(uuid4())
+    event_spec = existing_plan.event_specification
+
+    log_event(
+        agent_id=AGENT_ID,
+        action="adaptation_start",
+        status="started",
+        details={
+            "order_id": order_id,
+            "change_type": str(change_type),
+            "session_id": session_id,
+        },
+    )
+
+    if change_type == AdaptationChangeType.GUEST_COUNT_CHANGE:
+        try:
+            new_guest_count = int(new_value)
+        except (TypeError, ValueError) as exc:
+            return _error_message(
+                session_id=session_id,
+                error_code="ADAPT_INVALID_GUEST_COUNT",
+                message="Invalid guest count for adaptation.",
+                details={"error": str(exc)},
+            )
+        event_spec = event_spec.model_copy(update={"guest_count": new_guest_count})
+
+        menu_plan_message = await run_head_chef(event_spec=event_spec, session_id=session_id)
+        stopped = _stop_on_error(msg=menu_plan_message, failed_agent="head_chef", session_id=session_id)
+        if stopped is not None:
+            return stopped
+        if not isinstance(menu_plan_message.payload, MenuPlan):
+            return _error_message(
+                session_id=session_id,
+                error_code="ADAPT_HEAD_CHEF_BAD_PAYLOAD",
+                message="Head Chef returned an unexpected payload during adaptation.",
+            )
+    elif change_type == AdaptationChangeType.DIETARY_ADDITION:
+        addition = str(new_value).strip()
+        if not addition:
+            return _error_message(
+                session_id=session_id,
+                error_code="ADAPT_INVALID_DIETARY_ADDITION",
+                message="Invalid dietary addition for adaptation.",
+            )
+        updated = list(event_spec.dietary_restrictions)
+        if addition not in updated:
+            updated.append(addition)
+        event_spec = event_spec.model_copy(update={"dietary_restrictions": updated})
+
+        menu_plan_message = await run_head_chef(event_spec=event_spec, session_id=session_id)
+        stopped = _stop_on_error(msg=menu_plan_message, failed_agent="head_chef", session_id=session_id)
+        if stopped is not None:
+            return stopped
+        if not isinstance(menu_plan_message.payload, MenuPlan):
+            return _error_message(
+                session_id=session_id,
+                error_code="ADAPT_HEAD_CHEF_BAD_PAYLOAD",
+                message="Head Chef returned an unexpected payload during adaptation.",
+            )
+    elif change_type == AdaptationChangeType.BUDGET_CHANGE:
+        try:
+            new_budget_php = float(new_value)
+        except (TypeError, ValueError) as exc:
+            return _error_message(
+                session_id=session_id,
+                error_code="ADAPT_INVALID_BUDGET",
+                message="Invalid budget for adaptation.",
+                details={"error": str(exc)},
+            )
+
+        event_spec = event_spec.model_copy(update={"budget_php": new_budget_php})
+        menu_plan_message = _wrap_menu_plan_for_accountant(menu_plan=existing_plan.menu_plan, session_id=session_id)
+    else:
+        return _error_message(
+            session_id=session_id,
+            error_code="ADAPT_UNSUPPORTED_CHANGE_TYPE",
+            message="Unsupported change type.",
+            details={"change_type": str(change_type)},
+        )
+
+    cost_report_message = await run_accountant(
+        menu_plan_message=menu_plan_message,
+        event_spec=event_spec,
+        session_id=session_id,
+    )
+    stopped = _stop_on_error(msg=cost_report_message, failed_agent="accountant", session_id=session_id)
+    if stopped is not None:
+        return stopped
+    if not isinstance(cost_report_message.payload, CostReport):
+        return _error_message(
+            session_id=session_id,
+            error_code="ADAPT_ACCOUNTANT_BAD_PAYLOAD",
+            message="Accountant returned an unexpected payload during adaptation.",
+        )
+
+    negotiation_rounds_used = 0
+    while not _within_budget(cost_report_message.payload) and negotiation_rounds_used < 3:
+        negotiation_rounds_used += 1
+        flagged = list(cost_report_message.payload.flagged_items)
+
+        menu_plan_message = await revise_menu_plan(
+            event_spec=event_spec,
+            previous_menu_plan_message=menu_plan_message,
+            flagged_items=flagged,
+            session_id=session_id,
+        )
+        stopped = _stop_on_error(msg=menu_plan_message, failed_agent="head_chef", session_id=session_id)
+        if stopped is not None:
+            return stopped
+        if not isinstance(menu_plan_message.payload, MenuPlan):
+            return _error_message(
+                session_id=session_id,
+                error_code="ADAPT_HEAD_CHEF_BAD_PAYLOAD",
+                message="Head Chef returned an unexpected payload during negotiation.",
+            )
+
+        cost_report_message = await run_accountant(
+            menu_plan_message=menu_plan_message,
+            event_spec=event_spec,
+            session_id=session_id,
+        )
+        stopped = _stop_on_error(msg=cost_report_message, failed_agent="accountant", session_id=session_id)
+        if stopped is not None:
+            return stopped
+        if not isinstance(cost_report_message.payload, CostReport):
+            return _error_message(
+                session_id=session_id,
+                error_code="ADAPT_ACCOUNTANT_BAD_PAYLOAD",
+                message="Accountant returned an unexpected payload during negotiation.",
+            )
+
+    event_datetime_iso = f"{event_spec.event_date}T18:00:00+08:00"
+    logistics_plan_message = await run_logistics(
+        cost_report_message=cost_report_message,
+        event_datetime_iso=event_datetime_iso,
+        session_id=session_id,
+    )
+    stopped = _stop_on_error(msg=logistics_plan_message, failed_agent="logistics", session_id=session_id)
+    if stopped is not None:
+        return stopped
+    if not isinstance(logistics_plan_message.payload, LogisticsPlan):
+        return _error_message(
+            session_id=session_id,
+            error_code="ADAPT_LOGISTICS_BAD_PAYLOAD",
+            message="Logistics returned an unexpected payload during adaptation.",
+        )
+
+    procurement_list_message = await run_stock_manager(
+        logistics_plan_message=logistics_plan_message,
+        cost_report_message=cost_report_message,
+        session_id=session_id,
+    )
+    stopped = _stop_on_error(msg=procurement_list_message, failed_agent="stock_manager", session_id=session_id)
+    if stopped is not None:
+        return stopped
+    if not isinstance(procurement_list_message.payload, ProcurementList):
+        return _error_message(
+            session_id=session_id,
+            error_code="ADAPT_STOCK_MANAGER_BAD_PAYLOAD",
+            message="Stock Manager returned an unexpected payload during adaptation.",
+        )
+
+    total_seconds = round(time.perf_counter() - start, 3)
+    final_payload = FinalPlan(
+        event_id=event_spec.event_id,
+        event_specification=event_spec,
+        menu_plan=menu_plan_message.payload,
+        cost_report=cost_report_message.payload,
+        logistics_plan=logistics_plan_message.payload,
+        procurement_list=procurement_list_message.payload,
+        customer_summary=existing_plan.customer_summary,
+        total_processing_time_seconds=total_seconds,
+        negotiation_rounds_used=negotiation_rounds_used,
+    )
+
+    log_event(
+        agent_id=AGENT_ID,
+        action="adaptation_finish",
+        status="success",
+        details={
+            "order_id": order_id,
+            "negotiation_rounds_used": negotiation_rounds_used,
+            "within_budget": _within_budget(final_payload.cost_report),
+            "session_id": session_id,
+        },
+    )
+
+    return _wrap_message(
+        payload=final_payload,
+        message_type="final_plan",
+        target_agent="api",
+        session_id=session_id,
+    )
+
+
 async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
     """Run the full Concierge→Head Chef→Accountant→Logistics→Stock Manager pipeline.
 
@@ -233,6 +462,17 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
         _handoff(finished="concierge", next_agent="head_chef", session_id=session_id)
 
         event_spec = concierge_message.payload
+
+        shared_memory = SharedMemory(session_id=session_id, event_id=event_spec.event_id)
+        shared_memory.set(key="dietary_restrictions", value=set(event_spec.dietary_restrictions), writer_agent_id=AGENT_ID)
+        shared_memory.set(key="allergies", value=set(event_spec.allergies), writer_agent_id=AGENT_ID)
+        shared_memory.set(key="budget_php", value=event_spec.budget_php, writer_agent_id=AGENT_ID)
+        shared_memory.set_agent_output(
+            agent_id="concierge",
+            value=_payload_to_memory(concierge_message.payload),
+            writer_agent_id=AGENT_ID,
+        )
+
         ctx = SharedContext(
             session_id=session_id,
             event_spec=event_spec,
@@ -247,6 +487,17 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
             return stopped
         if not isinstance(menu_plan_message.payload, MenuPlan):
             raise ValueError("Head Chef did not return MenuPlan")
+
+        if set(ctx.event_spec.dietary_restrictions) != shared_memory.get("dietary_restrictions"):
+            raise ValueError("Dietary restrictions changed during pipeline")
+        if set(ctx.event_spec.allergies) != shared_memory.get("allergies"):
+            raise ValueError("Allergies changed during pipeline")
+
+        shared_memory.set_agent_output(
+            agent_id="head_chef",
+            value=_payload_to_memory(menu_plan_message.payload),
+            writer_agent_id=AGENT_ID,
+        )
         _handoff(finished="head_chef", next_agent="accountant", session_id=session_id)
 
         cost_report_message = await run_accountant(
@@ -260,10 +511,27 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
         if not isinstance(cost_report_message.payload, CostReport):
             raise ValueError("Accountant did not return CostReport")
 
+        shared_memory.set_agent_output(
+            agent_id="accountant",
+            value=_payload_to_memory(cost_report_message.payload),
+            writer_agent_id=AGENT_ID,
+        )
+
         negotiation_rounds_used = 0
         while not _within_budget(cost_report_message.payload) and negotiation_rounds_used < 3:
             negotiation_rounds_used += 1
             flagged = list(cost_report_message.payload.flagged_items)
+
+            shared_memory.append_negotiation_round(
+                round_data={
+                    "round": negotiation_rounds_used,
+                    "flagged_items": flagged,
+                    "budget_php": ctx.budget_php,
+                    "total_cost_php": cost_report_message.payload.total_cost_php,
+                    "within_budget": _within_budget(cost_report_message.payload),
+                },
+                writer_agent_id=AGENT_ID,
+            )
 
             log_event(
                 agent_id=AGENT_ID,
@@ -288,6 +556,17 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
             if not isinstance(menu_plan_message.payload, MenuPlan):
                 raise ValueError("Head Chef revision did not return MenuPlan")
 
+            if set(ctx.event_spec.dietary_restrictions) != shared_memory.get("dietary_restrictions"):
+                raise ValueError("Dietary restrictions changed during negotiation")
+            if set(ctx.event_spec.allergies) != shared_memory.get("allergies"):
+                raise ValueError("Allergies changed during negotiation")
+
+            shared_memory.set_agent_output(
+                agent_id="head_chef",
+                value=_payload_to_memory(menu_plan_message.payload),
+                writer_agent_id=AGENT_ID,
+            )
+
             _handoff(finished="head_chef", next_agent="accountant", session_id=session_id, details={"round": negotiation_rounds_used})
 
             cost_report_message = await run_accountant(
@@ -300,6 +579,12 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
                 return stopped
             if not isinstance(cost_report_message.payload, CostReport):
                 raise ValueError("Accountant did not return CostReport")
+
+            shared_memory.set_agent_output(
+                agent_id="accountant",
+                value=_payload_to_memory(cost_report_message.payload),
+                writer_agent_id=AGENT_ID,
+            )
 
             log_event(
                 agent_id=AGENT_ID,
@@ -326,6 +611,12 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
         if not isinstance(logistics_plan_message.payload, LogisticsPlan):
             raise ValueError("Logistics did not return LogisticsPlan")
 
+        shared_memory.set_agent_output(
+            agent_id="logistics",
+            value=_payload_to_memory(logistics_plan_message.payload),
+            writer_agent_id=AGENT_ID,
+        )
+
         _handoff(finished="logistics", next_agent="stock_manager", session_id=session_id)
 
         procurement_list_message = await run_stock_manager(
@@ -339,6 +630,12 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
         if not isinstance(procurement_list_message.payload, ProcurementList):
             raise ValueError("Stock Manager did not return ProcurementList")
 
+        shared_memory.set_agent_output(
+            agent_id="stock_manager",
+            value=_payload_to_memory(procurement_list_message.payload),
+            writer_agent_id=AGENT_ID,
+        )
+
         total_seconds = round(time.perf_counter() - start, 3)
         final_payload = FinalPlan(
             event_id=ctx.event_spec.event_id,
@@ -350,6 +647,12 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
             customer_summary="",
             total_processing_time_seconds=total_seconds,
             negotiation_rounds_used=negotiation_rounds_used,
+        )
+
+        shared_memory.set_agent_output(
+            agent_id="final_plan",
+            value=_payload_to_memory(final_payload),
+            writer_agent_id=AGENT_ID,
         )
 
         log_event(

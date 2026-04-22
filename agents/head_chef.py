@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from pydantic import ValidationError
 
+from utils.azure_client import create_search_client, try_load_settings
 from utils.json_schema import (
     AgentMessage,
     ErrorMessage,
@@ -141,6 +142,103 @@ def _load_recipes() -> list[dict[str, Any]]:
     if not isinstance(recipes, list):
         raise ValueError("recipes.json missing 'recipes' list")
     return recipes
+
+
+def _extract_recipes_from_search_content(content: Any) -> list[dict[str, Any]]:
+    """Extract recipe dicts from an Azure AI Search document.
+
+    The search index stores documents with a `content` field that may contain:
+    - A single recipe dict serialized as JSON
+    - An object containing a `recipes` list
+    - Other JSON fragments (which are ignored)
+
+    Args:
+        content: The raw `content` field from the search document.
+
+    Returns:
+        A list of recipe dicts.
+    """
+
+    if content is None:
+        return []
+
+    if isinstance(content, str):
+        try:
+            parsed = json.loads(content)
+        except json.JSONDecodeError:
+            return []
+    else:
+        parsed = content
+
+    if isinstance(parsed, dict) and isinstance(parsed.get("recipes"), list):
+        recipes = parsed.get("recipes")
+        return [r for r in recipes if isinstance(r, dict)]
+
+    if isinstance(parsed, dict):
+        return [parsed]
+
+    if isinstance(parsed, list):
+        return [r for r in parsed if isinstance(r, dict)]
+
+    return []
+
+
+async def _load_candidate_recipes(*, event_spec: EventSpecification) -> list[dict[str, Any]]:
+    """Load candidate recipes using Azure AI Search (RAG) with a local fallback.
+
+    This function attempts to retrieve relevant recipes from the Azure AI Search
+    index if credentials are configured. If search is not configured or fails,
+    it falls back to loading from the local `knowledge_base/recipes.json`.
+
+    Args:
+        event_spec: Event specification containing cuisine preferences and guest count.
+
+    Returns:
+        A list of recipe dicts.
+    """
+
+    settings = try_load_settings()
+    if settings is None:
+        return _load_recipes()
+
+    query_terms: list[str] = []
+    if event_spec.cuisine_preferences:
+        query_terms.extend([str(c).strip() for c in event_spec.cuisine_preferences if str(c).strip()])
+    query_terms.append("recipe")
+
+    # Guest count is not a searchable property in our schema, but including it can help
+    # match documents that mention serving sizes or party planning notes.
+    if event_spec.guest_count:
+        query_terms.append(f"{event_spec.guest_count} guests")
+
+    query = " ".join(query_terms).strip() or "recipe"
+
+    try:
+        search_client = create_search_client(index_name="catering-knowledge-base")
+        async with search_client:
+            results = search_client.search(
+                search_text=query,
+                filter="category eq 'recipes'",
+                top=50,
+            )
+
+            candidates: list[dict[str, Any]] = []
+            async for doc in results:
+                candidates.extend(_extract_recipes_from_search_content(doc.get("content")))
+
+        if candidates:
+            return candidates
+
+        return _load_recipes()
+
+    except Exception as exc:  # noqa: BLE001
+        log_event(
+            agent_id=AGENT_ID,
+            action="rag_search_recipes",
+            status="error",
+            details={"error": str(exc), "error_type": type(exc).__name__},
+        )
+        return _load_recipes()
 
 
 def _normalize_allergen(value: str) -> str:
@@ -286,7 +384,7 @@ async def revise_menu_plan(
         kept_items = [i for i in previous_plan.menu_items if i.name.strip().lower() not in flagged]
         removed = [i.name for i in previous_plan.menu_items if i.name.strip().lower() in flagged]
 
-        recipes = _load_recipes()
+        recipes = await _load_candidate_recipes(event_spec=event_spec)
         recipes = _filter_by_cuisine(recipes, event_spec.cuisine_preferences)
         blocked_allergens = _expand_allergy_terms(event_spec.allergies)
         safe_recipes = [r for r in recipes if _recipe_is_safe(r, blocked_allergens)]
@@ -406,7 +504,7 @@ async def run_head_chef(*, event_spec: EventSpecification, session_id: str) -> A
     )
 
     try:
-        recipes = _load_recipes()
+        recipes = await _load_candidate_recipes(event_spec=event_spec)
         recipes = _filter_by_cuisine(recipes, event_spec.cuisine_preferences)
 
         blocked_allergens = _expand_allergy_terms(event_spec.allergies)

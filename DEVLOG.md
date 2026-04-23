@@ -211,6 +211,40 @@
 - Blockers:
   - None.
 
+#### Session 7 — 2026-04-23
+**What we built:**
+- Built a frontend-only React UI in `frontend/` (Create React App + plain CSS only) with branding colors:
+  - Accent orange `#E8601C`
+  - Dark ink `#1A1A2E`
+- Implemented a two-panel layout:
+  - Left panel: customer-facing Order Form
+  - Right panel: technical Agent Activity Feed
+- Implemented results dashboard section below the panels:
+  - Summary card (cost, budget status, guest count)
+  - Tabs: Menu, Cost breakdown, Timeline, Procurement
+- Implemented API integration:
+  - `POST /api/v1/catering/order` (via CRA dev proxy to `http://127.0.0.1:8000`)
+  - API key loaded from `frontend/.env` via `REACT_APP_API_KEY` (never hardcoded)
+  - Clear error banner if API key is missing or request fails
+
+**What broke and how we fixed it:**
+- CRA scaffold failed once with an `npm` network `ECONNRESET`.
+  - Fix: re-ran `npx create-react-app frontend` after confirming npm registry connectivity.
+
+**Testing results:**
+- `npm --prefix frontend run build` compiled successfully.
+
+**Azure resources used this session:**
+- None
+
+**Status at end of session:**
+- What is working:
+  - Order form collects all required inputs and submits to the FastAPI order endpoint.
+  - Agent feed shows run status and displays negotiation rounds + processing time from the final plan.
+  - Results dashboard renders the returned `FinalPlan`.
+- Blockers:
+  - None.
+
 ---
 
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT
@@ -289,6 +323,27 @@
 
 **What multi-event optimization achieves:**
 - Multi-event optimization runs multiple orders and then aggregates procurement so shared ingredients can be bulk-optimized.
+
+#### Session 7 — 2026-04-23 — What I Learned
+**What `useState` means (plain English):**
+- `useState` is how a React component remembers information that can change over time (like form fields, loading flags, errors, and results).
+- In our UI we use it to store:
+  - The order form values
+  - `isLoading` while agents are running
+  - `errorMessage` when the API call fails
+  - `finalPlan` after the backend returns
+
+**What `useEffect` means (plain English):**
+- `useEffect` runs a piece of code after the component renders.
+- It’s used for “side effects” like timers, subscriptions, and syncing UI behavior when inputs change.
+- In our UI we use it in the Agent Activity Feed to:
+  - Animate agent step progression while `isRunning` is true
+  - Update negotiation display after a run completes
+
+**How the frontend connects to the FastAPI backend:**
+- The React app sends a JSON request to `POST /api/v1/catering/order`.
+- It includes `X-API-Key` from `frontend/.env` (`REACT_APP_API_KEY`).
+- The backend returns an `AgentMessage` wrapper. When `message_type` is `final_plan`, we render the `payload` in the Results Dashboard.
 
 ---
 

@@ -1,0 +1,68 @@
+.activityFeed {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.stepList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stepRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.stepTitle {
+  font-weight: 800;
+}
+
+.stepStatus {
+  font-size: 13px;
+  color: rgba(26, 26, 46, 0.82);
+  align-self: center;
+}
+
+.statusDone {
+  font-weight: 800;
+}
+
+.statusRunning {
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.statusPending {
+  color: rgba(26, 26, 46, 0.5);
+}
+
+.negotiationBox {
+  border: 1px solid rgba(232, 96, 28, 0.28);
+  background: rgba(232, 96, 28, 0.08);
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+}
+
+.negotiationTitle {
+  font-weight: 900;
+  margin-bottom: 4px;
+}
+
+.negotiationRounds {
+  font-size: 14px;
+}
+
+.processingTime {
+  font-size: 13px;
+  color: rgba(26, 26, 46, 0.8);
+}

@@ -1,0 +1,13 @@
+h1,
+h2 {
+  margin: 0 0 10px;
+}
+
+h2 {
+  font-size: 18px;
+}
+
+p {
+  margin: 0;
+  line-height: 1.5;
+}

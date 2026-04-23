@@ -1,0 +1,110 @@
+.resultsCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: 16px;
+}
+
+.summaryRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 900px) {
+  .summaryRow {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.summaryItem {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  background: var(--color-surface-muted);
+}
+
+.summaryLabel {
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(26, 26, 46, 0.72);
+  margin-bottom: 6px;
+}
+
+.summaryValue {
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.badge {
+  justify-self: end;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-weight: 900;
+  font-size: 12px;
+  border: 1px solid var(--color-border);
+}
+
+.badgeOk {
+  background: rgba(44, 168, 74, 0.10);
+  border-color: rgba(44, 168, 74, 0.28);
+}
+
+.badgeWarn {
+  background: rgba(213, 58, 58, 0.10);
+  border-color: rgba(213, 58, 58, 0.28);
+}
+
+.tabRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tab {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: 999px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.tabActive {
+  border-color: rgba(232, 96, 28, 0.55);
+  box-shadow: 0 0 0 3px rgba(232, 96, 28, 0.16);
+}
+
+.tableWrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 10px 10px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 14px;
+  vertical-align: top;
+}
+
+.table th {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: rgba(26, 26, 46, 0.75);
+}
+
+.emptyState {
+  color: rgba(26, 26, 46, 0.68);
+  padding: 12px 2px;
+}

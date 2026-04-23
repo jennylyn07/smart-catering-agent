@@ -1,0 +1,105 @@
+.orderForm {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 520px) {
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.span2 {
+  grid-column: span 2;
+}
+
+@media (max-width: 520px) {
+  .span2 {
+    grid-column: auto;
+  }
+}
+
+.labelText {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(26, 26, 46, 0.86);
+}
+
+.orderForm input[type='text'],
+.orderForm input[type='date'],
+.orderForm input[type='number'],
+.orderForm textarea {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  outline: none;
+}
+
+.orderForm input:focus,
+.orderForm textarea:focus {
+  border-color: rgba(232, 96, 28, 0.6);
+  box-shadow: 0 0 0 3px rgba(232, 96, 28, 0.16);
+}
+
+.group {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  background: var(--color-surface);
+}
+
+.group legend {
+  font-weight: 800;
+  padding: 0 6px;
+}
+
+.checkGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 12px;
+  margin-top: 10px;
+}
+
+@media (max-width: 520px) {
+  .checkGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.primaryButton {
+  border: 0;
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  font-weight: 800;
+  background: var(--color-accent);
+  color: white;
+  cursor: pointer;
+}
+
+.primaryButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}

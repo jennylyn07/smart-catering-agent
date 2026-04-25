@@ -48,7 +48,7 @@ def _iter_documents(*, source_file: Path, category: str, payload: Any) -> Iterab
             content = str(item)
 
         yield {
-            "id": f"{category}:{source_file.stem}:{i}",
+            "id": f"{category}_{source_file.stem}_{i}",
             "content": content,
             "category": category,
             "source_file": source_file.name,

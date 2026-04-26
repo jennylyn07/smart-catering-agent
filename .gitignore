@@ -8,3 +8,13 @@ __pycache__/
 frontend/node_modules/
 frontend/build/
 frontend/.env
+
+# Generated local artifacts
+audit*_*.txt
+tests_output*.txt
+tests_test_agents_output.txt
+request_body.json
+response_body.json
+response_headers.txt
+tests/test_run_output.txt
+tests/correctness_report.txt

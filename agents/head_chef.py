@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import random
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -216,7 +217,7 @@ async def _load_candidate_recipes(*, event_spec: EventSpecification) -> list[dic
     try:
         search_client = create_search_client(index_name="catering-knowledge-base")
         async with search_client:
-            results = search_client.search(
+            results = await search_client.search(
                 search_text=query,
                 filter="category eq 'recipes'",
                 top=50,
@@ -273,7 +274,105 @@ def _expand_allergy_terms(allergies: list[str]) -> set[str]:
     return expanded
 
 
-def _recipe_is_safe(recipe: dict[str, Any], blocked_allergens: set[str]) -> bool:
+def _recipe_matches_dietary_restrictions(
+    recipe: dict[str, Any],
+    dietary_restrictions: list[str],
+) -> bool:
+    normalized = {
+        normalize_dietary_flag(r)
+        for r in (dietary_restrictions or [])
+        if str(r).strip()
+    }
+    if not normalized:
+        return True
+
+    tags_raw = recipe.get("dietary_tags") or recipe.get("dietary_flags")
+    tag_set: set[str] = set()
+    if isinstance(tags_raw, list):
+        tag_set = {
+            normalize_dietary_flag(t)
+            for t in tags_raw
+            if str(t).strip()
+        }
+
+    if tag_set:
+        if "vegan" in normalized and "vegan" not in tag_set:
+            return False
+        if "vegetarian" in normalized and not ({"vegetarian", "vegan"} & tag_set):
+            return False
+        if "halal" in normalized and "halal" not in tag_set:
+            return False
+
+    ingredients = recipe.get("ingredients") or []
+    ingredient_names: set[str] = set()
+    for item in ingredients:
+        if isinstance(item, dict):
+            name = str(item.get("name") or "").strip().lower()
+            if name:
+                ingredient_names.add(name)
+
+    def _contains_any(blocked: set[str]) -> bool:
+        for ing in ingredient_names:
+            # Skip coconut milk for dairy/milk checks — it is plant-based
+            if ing == "coconut milk":
+                continue
+            for b in blocked:
+                if b in ing:
+                    return True
+        return False
+
+    vegetarian_block = {
+        "chicken",
+        "beef",
+        "pork",
+        "lamb",
+        "fish",
+        "shrimp",
+        "meat",
+        "bacon",
+        "sausage",
+        "longganisa",
+    }
+
+    vegan_block = set(vegetarian_block) | {
+        "dairy",
+        "egg",
+        "eggs",
+        "butter",
+        "cheese",
+        "cream",
+        "milk",
+    }
+
+    halal_block = {
+        "pork",
+        "bacon",
+        "lard",
+        "pork belly",
+        "lechon",
+        "bagnet",
+    }
+
+    if "vegetarian" in normalized and _contains_any(vegetarian_block):
+        return False
+
+    if "vegan" in normalized and _contains_any(vegan_block):
+        return False
+
+    if "halal" in normalized and _contains_any(halal_block):
+        return False
+
+    if "halal" in normalized and "pork" in ingredient_names:
+        return False
+
+    return True
+
+
+def _recipe_is_safe(
+    recipe: dict[str, Any],
+    blocked_allergens: set[str],
+    dietary_restrictions: list[str],
+) -> bool:
     """Determine whether a recipe is safe given a set of blocked allergens.
 
     Args:
@@ -285,7 +384,10 @@ def _recipe_is_safe(recipe: dict[str, Any], blocked_allergens: set[str]) -> bool
     """
     allergens = recipe.get("allergens") or []
     normalized_allergens = {_normalize_allergen(a) for a in allergens}
-    return normalized_allergens.isdisjoint(blocked_allergens)
+    if not normalized_allergens.isdisjoint(blocked_allergens):
+        return False
+
+    return _recipe_matches_dietary_restrictions(recipe, dietary_restrictions)
 
 
 def _build_menu_items(*, recipes: list[dict[str, Any]], guest_count: int) -> list[MenuItem]:
@@ -300,6 +402,9 @@ def _build_menu_items(*, recipes: list[dict[str, Any]], guest_count: int) -> lis
     """
     desired_order = ["appetizer", "main", "noodles", "vegetable", "dessert"]
     selected: list[dict[str, Any]] = []
+
+    recipes = list(recipes)  # make a copy
+    random.shuffle(recipes)
 
     for category in desired_order:
         for r in recipes:
@@ -387,7 +492,37 @@ async def revise_menu_plan(
         recipes = await _load_candidate_recipes(event_spec=event_spec)
         recipes = _filter_by_cuisine(recipes, event_spec.cuisine_preferences)
         blocked_allergens = _expand_allergy_terms(event_spec.allergies)
-        safe_recipes = [r for r in recipes if _recipe_is_safe(r, blocked_allergens)]
+        safe_recipes = [
+            r
+            for r in recipes
+            if _recipe_is_safe(r, blocked_allergens, event_spec.dietary_restrictions)
+        ]
+
+        safe_count = len(safe_recipes)
+        revised_rationale = (
+            "Revised menu after budget review; removed flagged items while preserving allergy constraints."
+        )
+
+        if safe_count < 3:
+            log_event(
+                agent_id=AGENT_ID,
+                action="revise_menu_plan",
+                status="warning",
+                details={
+                    "event_id": event_spec.event_id,
+                    "warning": "Insufficient safe recipes after filtering; returning a limited revised menu",
+                    "safe_recipe_count": safe_count,
+                    "cuisine_preferences": event_spec.cuisine_preferences,
+                    "dietary_restrictions": event_spec.dietary_restrictions,
+                    "allergies": event_spec.allergies,
+                },
+            )
+            revised_rationale = (
+                revised_rationale
+                + " Note: Only a limited number of dishes could be selected because constraints were too strict "
+                + f"(cuisines={event_spec.cuisine_preferences}, dietary={event_spec.dietary_restrictions}, "
+                + f"allergies={event_spec.allergies})."
+            )
 
         existing_categories = {str(i.category or "").strip().lower() for i in kept_items}
         desired_categories = ["appetizer", "main", "noodles", "vegetable", "dessert"]
@@ -395,6 +530,8 @@ async def revise_menu_plan(
         # Fill any missing categories with the first safe recipe not already used.
         used_names = {i.name.strip().lower() for i in kept_items}
         additions: list[MenuItem] = []
+        safe_recipes = list(safe_recipes)
+        random.shuffle(safe_recipes)
         for cat in desired_categories:
             if cat in existing_categories:
                 continue
@@ -427,7 +564,7 @@ async def revise_menu_plan(
         plan = MenuPlan(
             event_id=event_spec.event_id,
             menu_items=revised_items,
-            rationale="Revised menu after budget review; removed flagged items while preserving allergy constraints.",
+            rationale=revised_rationale,
             allergy_flags=sorted(blocked_allergens),
         )
 
@@ -508,14 +645,42 @@ async def run_head_chef(*, event_spec: EventSpecification, session_id: str) -> A
         recipes = _filter_by_cuisine(recipes, event_spec.cuisine_preferences)
 
         blocked_allergens = _expand_allergy_terms(event_spec.allergies)
-        safe_recipes = [r for r in recipes if _recipe_is_safe(r, blocked_allergens)]
+        safe_recipes = [
+            r
+            for r in recipes
+            if _recipe_is_safe(r, blocked_allergens, event_spec.dietary_restrictions)
+        ]
+
+        safe_count = len(safe_recipes)
+        rationale = "Menu selected from the recipe knowledge base while excluding dishes that match the event allergy list."
+
+        if safe_count < 3:
+            log_event(
+                agent_id=AGENT_ID,
+                action="create_menu_plan",
+                status="warning",
+                details={
+                    "event_id": event_spec.event_id,
+                    "warning": "Insufficient safe recipes after filtering; returning a limited menu",
+                    "safe_recipe_count": safe_count,
+                    "cuisine_preferences": event_spec.cuisine_preferences,
+                    "dietary_restrictions": event_spec.dietary_restrictions,
+                    "allergies": event_spec.allergies,
+                },
+            )
+            rationale = (
+                rationale
+                + " Note: Only a limited number of dishes could be selected because constraints were too strict "
+                + f"(cuisines={event_spec.cuisine_preferences}, dietary={event_spec.dietary_restrictions}, "
+                + f"allergies={event_spec.allergies})."
+            )
 
         menu_items = _build_menu_items(recipes=safe_recipes, guest_count=event_spec.guest_count)
 
         plan = MenuPlan(
             event_id=event_spec.event_id,
             menu_items=menu_items,
-            rationale="Menu selected from the recipe knowledge base while excluding dishes that match the event allergy list.",
+            rationale=rationale,
             allergy_flags=sorted(blocked_allergens),
         )
 

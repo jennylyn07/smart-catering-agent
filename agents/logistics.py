@@ -14,6 +14,7 @@ from utils.json_schema import (
     CostReport,
     DeliveryWindow,
     ErrorMessage,
+    EventSpecification,
     LogisticsPlan,
     MessageHeader,
     MessageMetadata,
@@ -136,6 +137,12 @@ def _fmt(dt: datetime) -> str:
     return dt.isoformat()
 
 
+def _notes_include(notes: Optional[str], needle: str) -> bool:
+    if not notes:
+        return False
+    return needle.strip().lower() in notes.strip().lower()
+
+
 def _load_suppliers() -> list[dict[str, Any]]:
     """Load supplier data from the suppliers knowledge base.
 
@@ -241,6 +248,7 @@ def _timeline_from_event(event_dt: datetime) -> list[TimelineTask]:
 async def run_logistics(
     *,
     cost_report_message: AgentMessage,
+    event_spec: EventSpecification,
     event_datetime_iso: str,
     session_id: str,
 ) -> AgentMessage:
@@ -258,7 +266,10 @@ async def run_logistics(
         agent_id=AGENT_ID,
         action="build_logistics_plan",
         status="started",
-        details={"event_datetime_iso": event_datetime_iso},
+        details={
+            "event_datetime_iso": event_datetime_iso,
+            "event_id": getattr(event_spec, "event_id", None),
+        },
     )
 
     try:
@@ -268,9 +279,15 @@ async def run_logistics(
         cost_report: CostReport = cost_report_message.payload
         event_dt = _parse_event_datetime(event_datetime_iso)
 
+        notes = event_spec.notes
+
         timeline = _timeline_from_event(event_dt)
 
-        prep_start_time = _fmt(event_dt - timedelta(hours=12))
+        prep_start_dt = event_dt - timedelta(hours=12)
+        if _notes_include(notes, "5am") or _notes_include(notes, "early setup"):
+            prep_start_dt = min(prep_start_dt, event_dt - timedelta(hours=14))
+
+        prep_start_time = _fmt(prep_start_dt)
         delivery_time = _fmt(event_dt - timedelta(hours=2))
 
         buffer_minutes = 45
@@ -290,6 +307,55 @@ async def run_logistics(
             critical_path.append("Most prep-intensive dishes: " + ", ".join(most_prep_dishes))
         critical_path.append("Venue access and setup")
 
+        staffing_notes: Optional[str] = None
+        if _notes_include(notes, "plated"):
+            staffing_notes = "Plated service requested; assign extra plating/runner staff and allocate time for plating."
+            plating_dt = event_dt - timedelta(minutes=45)
+            timeline.append(
+                TimelineTask(
+                    time=_fmt(plating_dt),
+                    description="Plated service: assign plating staff and organize plating stations",
+                    owner="logistics",
+                )
+            )
+
+        if _notes_include(notes, "buffet"):
+            prefix = "" if staffing_notes is None else staffing_notes + " "
+            staffing_notes = prefix + "Buffet service requested; set up food stations and assign replenishment staff."
+            buffet_dt = event_dt - timedelta(hours=2)
+            timeline.append(
+                TimelineTask(
+                    time=_fmt(buffet_dt),
+                    description="Buffet setup: arrange stations and chafing dishes",
+                    owner="logistics",
+                )
+            )
+
+        if _notes_include(notes, "3-course"):
+            prefix = "" if staffing_notes is None else staffing_notes + " "
+            staffing_notes = prefix + "3-course service requested; plan pacing and service staff by course."
+            timeline.extend(
+                [
+                    TimelineTask(
+                        time=_fmt(event_dt - timedelta(minutes=30)),
+                        description="Appetizer service window",
+                        owner="logistics",
+                    ),
+                    TimelineTask(
+                        time=_fmt(event_dt),
+                        description="Main course service window",
+                        owner="logistics",
+                    ),
+                    TimelineTask(
+                        time=_fmt(event_dt + timedelta(minutes=45)),
+                        description="Dessert service window",
+                        owner="logistics",
+                    ),
+                ]
+            )
+
+        timeline.sort(key=lambda t: t.time)
+
         plan = LogisticsPlan(
             event_id=cost_report.event_id,
             prep_start_time=prep_start_time,
@@ -299,7 +365,7 @@ async def run_logistics(
             delivery_windows=[delivery_window],
             buffer_time_minutes=buffer_minutes,
             route=[],
-            staffing_notes=None,
+            staffing_notes=staffing_notes,
         )
 
         msg = _wrap_message(

@@ -83,7 +83,22 @@ async def persist_final_plan(*, order_id: str, final_plan: Dict[str, Any]) -> No
         "final_plan": final_plan,
         "adaptation_events": [],
     }
-    await upsert_order_document(order_id=order_id, document=doc)
+    try:
+        await upsert_order_document(order_id=order_id, document=doc)
+        log_event(
+            agent_id="cosmos_store",
+            action="save_order",
+            status="success",
+            details={"order_id": order_id},
+        )
+    except Exception as exc:  # noqa: BLE001
+        log_event(
+            agent_id="cosmos_store",
+            action="save_order",
+            status="error",
+            details={"order_id": order_id, "error": str(exc), "error_type": type(exc).__name__},
+        )
+        raise
     log_event(
         agent_id="api",
         action="cosmos_persist_final_plan",

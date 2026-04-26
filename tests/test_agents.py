@@ -59,6 +59,60 @@ async def _main() -> None:
         names = [item.name.lower() for item in head_chef_message.payload.menu_items]
         assert not any("kare" in n for n in names), "Nut allergy check failed: Kare-Kare should be excluded"
 
+    event_spec_vegan = event_spec.model_copy(update={"dietary_restrictions": ["vegan"]})
+    head_chef_vegan = await run_head_chef(event_spec=event_spec_vegan, session_id=session_id)
+    print("\n--- Head Chef output (menu_plan, vegan) ---\n")
+    print(head_chef_vegan.model_dump_json(indent=2, by_alias=True))
+
+    if hasattr(head_chef_vegan.payload, "menu_items"):
+        vegan_ingredients = [
+            ing.lower()
+            for item in head_chef_vegan.payload.menu_items
+            for ing in (item.ingredients or [])
+        ]
+        blocked_terms = {
+            "chicken",
+            "pork",
+            "beef",
+            "fish",
+            "shrimp",
+            "egg",
+            "eggs",
+            "butter",
+            "cheese",
+            "cream",
+            "milk",
+        }
+        assert not any(
+            any(term in ing and "coconut milk" not in ing for term in blocked_terms) for ing in vegan_ingredients
+        ), "Vegan dietary check failed: menu contains animal/dairy ingredient terms"
+
+    event_spec_halal = event_spec.model_copy(update={"dietary_restrictions": ["halal"]})
+    head_chef_halal = await run_head_chef(event_spec=event_spec_halal, session_id=session_id)
+    print("\n--- Head Chef output (menu_plan, halal) ---\n")
+    print(head_chef_halal.model_dump_json(indent=2, by_alias=True))
+
+    if hasattr(head_chef_halal.payload, "menu_items"):
+        halal_ingredients = [
+            ing.lower()
+            for item in head_chef_halal.payload.menu_items
+            for ing in (item.ingredients or [])
+        ]
+        assert not any("pork" in ing or "bacon" in ing or "lard" in ing for ing in halal_ingredients), (
+            "Halal dietary check failed: menu contains pork/bacon/lard terms"
+        )
+
+    event_spec_tight_constraints = event_spec.model_copy(
+        update={
+            "cuisine_preferences": ["western"],
+            "dietary_restrictions": ["vegan"],
+            "allergies": ["nuts", "wheat", "dairy", "egg", "soy"],
+        }
+    )
+    head_chef_tight = await run_head_chef(event_spec=event_spec_tight_constraints, session_id=session_id)
+    print("\n--- Head Chef output (menu_plan, tight constraints) ---\n")
+    print(head_chef_tight.model_dump_json(indent=2, by_alias=True))
+
     menu_plan = MenuPlan(
         event_id=event_spec.event_id,
         menu_items=[
@@ -134,8 +188,19 @@ async def _main() -> None:
     print("\n--- Accountant output Scenario B (tight budget) ---\n")
     print(cost_report_b.model_dump_json(indent=2, by_alias=True))
 
+    event_spec_notes = event_spec_tight.model_copy(update={"notes": "Plated service, 3-course, early setup at 5AM"})
+    logistics_plan_notes = await run_logistics(
+        cost_report_message=cost_report_b,
+        event_spec=event_spec_notes,
+        event_datetime_iso="2026-05-20T18:00:00+08:00",
+        session_id=session_id,
+    )
+    print("\n--- Logistics output (logistics_plan, notes) ---\n")
+    print(logistics_plan_notes.model_dump_json(indent=2, by_alias=True))
+
     logistics_plan = await run_logistics(
         cost_report_message=cost_report_b,
+        event_spec=event_spec_tight,
         event_datetime_iso="2026-05-20T18:00:00+08:00",
         session_id=session_id,
     )

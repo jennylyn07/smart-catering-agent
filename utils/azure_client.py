@@ -134,9 +134,9 @@ def create_search_client(*, index_name: str) -> Any:
     settings = get_settings()
 
     from azure.core.credentials import AzureKeyCredential  # type: ignore
-    from azure.search.documents.aio import SearchClient  # type: ignore
+    from azure.search.documents.aio import SearchClient as AsyncSearchClient  # type: ignore
 
-    return SearchClient(
+    return AsyncSearchClient(
         endpoint=settings.azure_search_endpoint,
         index_name=index_name,
         credential=AzureKeyCredential(settings.azure_search_key),

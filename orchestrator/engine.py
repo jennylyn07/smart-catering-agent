@@ -31,6 +31,7 @@ from utils.json_schema import (
     ProcurementList,
 )
 from utils.logger import log_event
+from utils.cosmos_store import get_container_name, persist_final_plan
 
 AGENT_ID = "orchestrator"
 
@@ -372,6 +373,7 @@ async def adapt_from_existing_plan(
     event_datetime_iso = f"{event_spec.event_date}T18:00:00+08:00"
     logistics_plan_message = await run_logistics(
         cost_report_message=cost_report_message,
+        event_spec=event_spec,
         event_datetime_iso=event_datetime_iso,
         session_id=session_id,
     )
@@ -602,6 +604,7 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
         event_datetime_iso = f"{ctx.event_spec.event_date}T18:00:00+08:00"
         logistics_plan_message = await run_logistics(
             cost_report_message=cost_report_message,
+            event_spec=ctx.event_spec,
             event_datetime_iso=event_datetime_iso,
             session_id=ctx.session_id,
         )
@@ -666,6 +669,30 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
                 "within_budget": _within_budget(final_payload.cost_report),
             },
         )
+
+        order_id = str(final_payload.event_id).strip()
+        if order_id:
+            try:
+                await persist_final_plan(order_id=order_id, final_plan=final_payload.model_dump())
+                log_event(
+                    agent_id="cosmos_store",
+                    action="save_final_plan",
+                    status="success",
+                    details={"order_id": order_id, "container": get_container_name()},
+                )
+            except Exception as exc:  # noqa: BLE001
+                log_event(
+                    agent_id="cosmos_store",
+                    action="save_final_plan",
+                    status="error",
+                    details={
+                        "order_id": order_id,
+                        "container": get_container_name(),
+                        "error": str(exc),
+                        "error_type": type(exc).__name__,
+                    },
+                )
+                pass
 
         return _wrap_message(
             payload=final_payload,

@@ -323,11 +323,9 @@ async def run_accountant(
 
         ingredients_cost = sum(d.cost_php for d in dish_costs)
 
-        overhead_rate = 1.20
-        profit_rate = 0.30
-        overhead_cost = ingredients_cost * overhead_rate
-        profit_cost = (ingredients_cost + overhead_cost) * profit_rate
-        total_cost = ingredients_cost + overhead_cost + profit_cost
+        fixed_overhead = 2500.0 + 1500.0 + 800.0
+        labor_cost = 150.0 * float(event_spec.guest_count)
+        total_cost = ingredients_cost + labor_cost + fixed_overhead
         budget = event_spec.budget_php
 
         is_within_budget: Optional[bool]
@@ -365,7 +363,10 @@ async def run_accountant(
             flagged_items=flagged_items,
             recommended_alternatives=recommended,
             line_items=line_items,
-            notes=f"Includes overhead (rate={overhead_rate}) and profit margin (rate={profit_rate}) on top of ingredient costs.",
+            notes=(
+                "Includes fixed overhead (setup_fee=2500, equipment_rental=1500, delivery=800) "
+                "and labor cost (150 per guest) on top of ingredient costs."
+            ),
         )
 
         msg = _wrap_message(

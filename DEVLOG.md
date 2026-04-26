@@ -245,6 +245,64 @@
 - Blockers:
   - None.
 
+#### Session 8 — 2026-04-25
+**What we built / changed (bug fixes):**
+- **Fix 1: Dietary restriction enforcement in Head Chef**
+  - Updated dietary filtering to accept recipe fields using either `dietary_tags` or `dietary_flags`.
+  - Added ingredient-based blocking to enforce vegan/vegetarian/halal style restrictions even when tags are missing.
+  - Added a targeted exception so `coconut milk` does not trigger false positives for dairy/milk checks.
+- **Fix 2: Recipe knowledge base corrections**
+  - Updated `knowledge_base/recipes.json`:
+    - `fil-006` (Laing) `dietary_flags` now includes `vegan`.
+    - `fil-007` (Ginataang Gulay) `dietary_flags` now includes `vegan`.
+- **Fix 3: Azure AI Search async client compatibility**
+  - Updated `utils/azure_client.py` so `create_search_client()` returns the async Azure Search client (`azure.search.documents.aio.SearchClient`) for correct `async with` / `async for` usage.
+- **Fix 4: Await async search call in Head Chef RAG retrieval**
+  - Updated `agents/head_chef.py` to `await search_client.search(...)` when using the async client.
+- **Fix 5: Graceful handling when too few safe recipes exist**
+  - Updated `agents/head_chef.py` to log a warning and enrich the menu rationale when fewer than 3 safe recipes are available under the current constraints.
+- **Fix 6: Notes-driven logistics adjustments**
+  - Updated `agents/logistics.py` to accept `event_spec` and interpret `event_spec.notes` to:
+    - Start prep earlier for “early setup / 5AM” type notes.
+    - Add timeline tasks for plated service and 3-course service windows.
+    - Add staffing-related notes based on keywords.
+  - Updated `orchestrator/engine.py` to pass `event_spec` into the Logistics agent call.
+  - Updated `tests/test_agents.py` to pass `event_spec` into `run_logistics()` accordingly.
+
+**Session 8 (continued) — 2026-04-26**
+**What we built / changed (additional fixes + verification):**
+- **Menu variety improvement (Head Chef)**
+  - Updated `agents/head_chef.py` to shuffle candidate recipe lists to reduce deterministic menus across repeated runs.
+- **Buffet notes handling (Logistics)**
+  - Updated `agents/logistics.py` to recognize “buffet” in special notes and add an explicit buffet setup timeline task + staffing notes.
+- **Recipe knowledge base expansion (Filipino vegan/halal options)**
+  - Updated `knowledge_base/recipes.json` with additional Filipino recipes (IDs `fil-009` to `fil-013`) to improve options under vegan/halal constraints.
+- **Cosmos persistence visibility (logging + wiring)**
+  - Updated `utils/cosmos_store.py` to log explicit success/error around final plan persistence.
+  - Updated `orchestrator/engine.py` to persist successful `FinalPlan` to Cosmos after pipeline success (so `run_orchestration` runs are persisted, not only API-route runs), with explicit success/error logs.
+- **Correctness test suite improvements**
+  - Added/updated `tests/test_correctness.py` to cover core scenarios, notes, variety, cost scaling, edge cases, and bonus endpoints.
+  - Moved `load_dotenv(override=False)` to import time so `API_KEY` is available for backend tests.
+  - Fixed `_section_6_edge_cases()` to always return its results list.
+  - Updated backend endpoint tests to use a real `order_id` from a pipeline run for adaptation, and to print the Cosmos readback key for persistence verification.
+
+**What broke and how we fixed it:**
+- Azure Search RAG failures (when running tests): `ResourceNotFoundError` for index `catering-knowledge-base`.
+  - Cause: Azure AI Search endpoint/service did not have the expected index.
+  - Fix: Code-side async usage was corrected; the remaining requirement is to run `scripts/setup_search_index.py` (or point to the correct Search service/index) to enable successful retrieval.
+
+**Testing results:**
+- `python -m tests.test_agents` executed via venv with output captured to UTF-8 text files for inspection.
+
+**Azure resources used this session:**
+- Azure AI Search (attempted) — retrieval failed when index was missing; local fallback recipes were used.
+
+**Additional notes (index setup script):**
+- Updated `scripts/setup_search_index.py` `_iter_documents()` to generate Azure Search document keys using underscores instead of colons:
+  - From: `f"{category}:{source_file.stem}:{i}"`
+  - To: `f"{category}_{source_file.stem}_{i}"`
+  - Reason: avoid `InvalidDocumentKey` errors during document upload.
+
 ---
 
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT

@@ -99,6 +99,7 @@
         "coconut"
       ],
       "dietary_flags": [
+        "vegan",
         "vegetarian"
       ],
       "ingredients": [
@@ -118,6 +119,7 @@
         "coconut"
       ],
       "dietary_flags": [
+        "vegan",
         "vegetarian"
       ],
       "ingredients": [
@@ -144,6 +146,281 @@
         {"name": "all-purpose cream", "quantity": 0.5, "unit": "L"},
         {"name": "condensed milk", "quantity": 0.3, "unit": "L"},
         {"name": "pandan jelly", "quantity": 0.4, "unit": "kg"}
+      ]
+    },
+    {
+      "id": "fil-009",
+      "name": "Pinakbet",
+      "category": "vegetable",
+      "cuisine": "filipino",
+      "dietary_tags": ["vegan", "vegetarian"],
+      "dietary_flags": ["vegan", "vegetarian"],
+      "allergens": [],
+      "ingredients": [
+        {"name": "squash", "quantity": 0.3, "unit": "kg"},
+        {"name": "eggplant", "quantity": 0.3, "unit": "kg"},
+        {"name": "string beans", "quantity": 0.2, "unit": "kg"},
+        {"name": "bitter melon", "quantity": 0.2, "unit": "kg"},
+        {"name": "tomato", "quantity": 0.2, "unit": "kg"},
+        {"name": "garlic", "quantity": 0.03, "unit": "kg"},
+        {"name": "onion", "quantity": 0.1, "unit": "kg"}
+      ]
+    },
+    {
+      "id": "fil-010",
+      "name": "Sinangag",
+      "category": "noodles",
+      "cuisine": "filipino",
+      "dietary_tags": ["vegan", "vegetarian", "halal"],
+      "dietary_flags": ["vegan", "vegetarian", "halal"],
+      "allergens": [],
+      "ingredients": [
+        {"name": "rice", "quantity": 0.5, "unit": "kg"},
+        {"name": "garlic", "quantity": 0.05, "unit": "kg"},
+        {"name": "vegetable oil", "quantity": 0.05, "unit": "L"},
+        {"name": "salt", "quantity": 0.01, "unit": "kg"}
+      ]
+    },
+    {
+      "id": "fil-011",
+      "name": "Lumpiang Gulay",
+      "category": "appetizer",
+      "cuisine": "filipino",
+      "dietary_tags": ["vegan", "vegetarian", "halal"],
+      "dietary_flags": ["vegan", "vegetarian", "halal"],
+      "allergens": ["gluten"],
+      "ingredients": [
+        {"name": "cabbage", "quantity": 0.3, "unit": "kg"},
+        {"name": "carrot", "quantity": 0.2, "unit": "kg"},
+        {"name": "green beans", "quantity": 0.2, "unit": "kg"},
+        {"name": "spring roll wrapper", "quantity": 0.3, "unit": "kg"},
+        {"name": "garlic", "quantity": 0.03, "unit": "kg"},
+        {"name": "onion", "quantity": 0.1, "unit": "kg"}
+      ]
+    },
+    {
+      "id": "fil-012",
+      "name": "Beef Kaldereta",
+      "category": "main",
+      "cuisine": "filipino",
+      "dietary_tags": ["halal"],
+      "dietary_flags": ["halal"],
+      "allergens": [],
+      "ingredients": [
+        {"name": "beef", "quantity": 1.0, "unit": "kg"},
+        {"name": "tomato", "quantity": 0.3, "unit": "kg"},
+        {"name": "carrot", "quantity": 0.2, "unit": "kg"},
+        {"name": "potato", "quantity": 0.3, "unit": "kg"},
+        {"name": "garlic", "quantity": 0.05, "unit": "kg"},
+        {"name": "onion", "quantity": 0.15, "unit": "kg"},
+        {"name": "tomato paste", "quantity": 0.1, "unit": "kg"}
+      ]
+    },
+    {
+      "id": "fil-013",
+      "name": "Chicken Tinola",
+      "category": "main",
+      "cuisine": "filipino",
+      "dietary_tags": ["halal"],
+      "dietary_flags": ["halal"],
+      "allergens": [],
+      "ingredients": [
+        {"name": "chicken", "quantity": 1.0, "unit": "kg"},
+        {"name": "ginger", "quantity": 0.05, "unit": "kg"},
+        {"name": "garlic", "quantity": 0.05, "unit": "kg"},
+        {"name": "onion", "quantity": 0.1, "unit": "kg"},
+        {"name": "sayote", "quantity": 0.3, "unit": "kg"},
+        {"name": "malunggay", "quantity": 0.1, "unit": "kg"}
+      ]
+    },
+    {
+      "id": "wes-001",
+      "name": "Caesar Salad",
+      "cuisine": "western",
+      "category": "appetizer",
+      "allergens": [
+        "dairy",
+        "gluten"
+      ],
+      "dietary_tags": [
+        "vegetarian"
+      ],
+      "ingredients": [
+        {"name": "romaine lettuce", "quantity": 1.0, "unit": "kg"},
+        {"name": "croutons", "quantity": 0.3, "unit": "kg"},
+        {"name": "parmesan", "quantity": 0.2, "unit": "kg"},
+        {"name": "olive oil", "quantity": 0.1, "unit": "L"},
+        {"name": "lemon", "quantity": 0.1, "unit": "kg"},
+        {"name": "garlic", "quantity": 0.05, "unit": "kg"}
+      ]
+    },
+    {
+      "id": "wes-002",
+      "name": "Grilled Chicken",
+      "cuisine": "western",
+      "category": "main",
+      "allergens": [],
+      "dietary_tags": [
+        "halal"
+      ],
+      "ingredients": [
+        {"name": "chicken", "quantity": 1.5, "unit": "kg"},
+        {"name": "olive oil", "quantity": 0.1, "unit": "L"},
+        {"name": "garlic", "quantity": 0.05, "unit": "kg"},
+        {"name": "black pepper", "quantity": 0.01, "unit": "kg"},
+        {"name": "lemon", "quantity": 0.1, "unit": "kg"}
+      ]
+    },
+    {
+      "id": "wes-003",
+      "name": "Pasta Carbonara",
+      "cuisine": "western",
+      "category": "main",
+      "allergens": [
+        "gluten",
+        "dairy",
+        "egg"
+      ],
+      "dietary_tags": [],
+      "ingredients": [
+        {"name": "pasta", "quantity": 1.0, "unit": "kg"},
+        {"name": "egg", "quantity": 0.2, "unit": "kg"},
+        {"name": "parmesan", "quantity": 0.2, "unit": "kg"},
+        {"name": "cream", "quantity": 0.3, "unit": "L"},
+        {"name": "black pepper", "quantity": 0.01, "unit": "kg"}
+      ]
+    },
+    {
+      "id": "wes-004",
+      "name": "Roasted Vegetables",
+      "cuisine": "western",
+      "category": "vegetable",
+      "allergens": [],
+      "dietary_tags": [
+        "vegan",
+        "vegetarian",
+        "halal"
+      ],
+      "ingredients": [
+        {"name": "carrot", "quantity": 0.6, "unit": "kg"},
+        {"name": "zucchini", "quantity": 0.6, "unit": "kg"},
+        {"name": "bell pepper", "quantity": 0.5, "unit": "kg"},
+        {"name": "olive oil", "quantity": 0.1, "unit": "L"},
+        {"name": "black pepper", "quantity": 0.01, "unit": "kg"},
+        {"name": "salt", "quantity": 0.01, "unit": "kg"}
+      ]
+    },
+    {
+      "id": "wes-005",
+      "name": "Chocolate Cake",
+      "cuisine": "western",
+      "category": "dessert",
+      "allergens": [
+        "gluten",
+        "dairy",
+        "egg"
+      ],
+      "dietary_tags": [
+        "vegetarian"
+      ],
+      "ingredients": [
+        {"name": "flour", "quantity": 1.0, "unit": "kg"},
+        {"name": "cocoa powder", "quantity": 0.2, "unit": "kg"},
+        {"name": "sugar", "quantity": 0.5, "unit": "kg"},
+        {"name": "butter", "quantity": 0.2, "unit": "kg"},
+        {"name": "milk", "quantity": 0.3, "unit": "L"},
+        {"name": "egg", "quantity": 0.2, "unit": "kg"}
+      ]
+    },
+    {
+      "id": "int-001",
+      "name": "Spring Rolls",
+      "cuisine": "international",
+      "category": "appetizer",
+      "allergens": [
+        "gluten"
+      ],
+      "dietary_tags": [
+        "vegetarian"
+      ],
+      "ingredients": [
+        {"name": "spring roll wrapper", "quantity": 1.0, "unit": "kg"},
+        {"name": "cabbage", "quantity": 0.6, "unit": "kg"},
+        {"name": "carrot", "quantity": 0.4, "unit": "kg"},
+        {"name": "onion", "quantity": 0.2, "unit": "kg"},
+        {"name": "garlic", "quantity": 0.05, "unit": "kg"}
+      ]
+    },
+    {
+      "id": "int-002",
+      "name": "Beef Stir Fry",
+      "cuisine": "international",
+      "category": "main",
+      "allergens": [
+        "soy"
+      ],
+      "dietary_tags": [],
+      "ingredients": [
+        {"name": "beef", "quantity": 1.2, "unit": "kg"},
+        {"name": "soy sauce", "quantity": 0.2, "unit": "L"},
+        {"name": "broccoli", "quantity": 0.6, "unit": "kg"},
+        {"name": "garlic", "quantity": 0.05, "unit": "kg"},
+        {"name": "onion", "quantity": 0.2, "unit": "kg"}
+      ]
+    },
+    {
+      "id": "int-003",
+      "name": "Fried Rice",
+      "cuisine": "international",
+      "category": "noodles",
+      "allergens": [
+        "soy",
+        "egg"
+      ],
+      "dietary_tags": [],
+      "ingredients": [
+        {"name": "rice", "quantity": 1.5, "unit": "kg"},
+        {"name": "egg", "quantity": 0.2, "unit": "kg"},
+        {"name": "soy sauce", "quantity": 0.2, "unit": "L"},
+        {"name": "carrot", "quantity": 0.3, "unit": "kg"},
+        {"name": "peas", "quantity": 0.3, "unit": "kg"},
+        {"name": "onion", "quantity": 0.2, "unit": "kg"}
+      ]
+    },
+    {
+      "id": "int-004",
+      "name": "Steamed Vegetables",
+      "cuisine": "international",
+      "category": "vegetable",
+      "allergens": [],
+      "dietary_tags": [
+        "vegan",
+        "vegetarian",
+        "halal"
+      ],
+      "ingredients": [
+        {"name": "broccoli", "quantity": 0.7, "unit": "kg"},
+        {"name": "carrot", "quantity": 0.5, "unit": "kg"},
+        {"name": "cauliflower", "quantity": 0.7, "unit": "kg"},
+        {"name": "salt", "quantity": 0.01, "unit": "kg"}
+      ]
+    },
+    {
+      "id": "int-005",
+      "name": "Fruit Salad",
+      "cuisine": "international",
+      "category": "dessert",
+      "allergens": [],
+      "dietary_tags": [
+        "vegan",
+        "vegetarian",
+        "halal"
+      ],
+      "ingredients": [
+        {"name": "apple", "quantity": 0.5, "unit": "kg"},
+        {"name": "banana", "quantity": 0.5, "unit": "kg"},
+        {"name": "orange", "quantity": 0.5, "unit": "kg"},
+        {"name": "grapes", "quantity": 0.4, "unit": "kg"}
       ]
     }
   ]

@@ -33,7 +33,124 @@ from utils.json_schema import (
 from utils.logger import log_event
 from utils.cosmos_store import get_container_name, persist_final_plan
 
+try:
+    from semantic_kernel import Kernel
+    from semantic_kernel.functions import kernel_function
+    from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
+except Exception:  # noqa: BLE001
+    Kernel = None  # type: ignore[assignment]
+    kernel_function = None  # type: ignore[assignment]
+    AzureChatCompletion = None  # type: ignore[assignment]
+
+try:
+    from autogen_agentchat.agents import AssistantAgent
+    from autogen_ext.models.openai import AzureOpenAIChatCompletionClient
+except Exception:  # noqa: BLE001
+    AssistantAgent = None  # type: ignore[assignment]
+    AzureOpenAIChatCompletionClient = None  # type: ignore[assignment]
+
 AGENT_ID = "orchestrator"
+
+
+def _build_kernel() -> Any:
+    if Kernel is None:
+        return None
+
+    import os
+
+    kernel = Kernel()
+    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    api_key = os.getenv("AZURE_OPENAI_API_KEY")
+    deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
+    if endpoint and api_key and deployment and AzureChatCompletion is not None:
+        kernel.add_service(
+            AzureChatCompletion(
+                deployment_name=deployment,
+                endpoint=endpoint,
+                api_key=api_key,
+            )
+        )
+    return kernel
+
+
+def _build_autogen_orchestrator_agent() -> Any:
+    if AssistantAgent is None or AzureOpenAIChatCompletionClient is None:
+        return None
+
+    import os
+
+    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    api_key = os.getenv("AZURE_OPENAI_API_KEY")
+    deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
+    if not (endpoint and api_key and deployment):
+        return None
+
+    model_client = AzureOpenAIChatCompletionClient(
+        azure_endpoint=endpoint,
+        azure_deployment=deployment,
+        api_key=api_key,
+        api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview"),
+    )
+    return AssistantAgent(name="OrchestratorAgent", model_client=model_client)
+
+
+if kernel_function is not None:
+
+    class CateringAgentsPlugin:
+        @kernel_function(name="concierge")
+        async def concierge(self, raw_customer_text: str, session_id: str) -> AgentMessage:
+            return await run_concierge(raw_customer_text=raw_customer_text, session_id=session_id)
+
+        @kernel_function(name="head_chef")
+        async def head_chef(self, event_spec: EventSpecification, session_id: str) -> AgentMessage:
+            return await run_head_chef(event_spec=event_spec, session_id=session_id)
+
+        @kernel_function(name="accountant")
+        async def accountant(self, menu_plan_message: AgentMessage, event_spec: EventSpecification, session_id: str) -> AgentMessage:
+            return await run_accountant(menu_plan_message=menu_plan_message, event_spec=event_spec, session_id=session_id)
+
+        @kernel_function(name="revise_menu_plan")
+        async def revise_menu_plan(
+            self,
+            event_spec: EventSpecification,
+            previous_menu_plan_message: AgentMessage,
+            flagged_items: list[str],
+            session_id: str,
+        ) -> AgentMessage:
+            return await revise_menu_plan(
+                event_spec=event_spec,
+                previous_menu_plan_message=previous_menu_plan_message,
+                flagged_items=flagged_items,
+                session_id=session_id,
+            )
+
+        @kernel_function(name="logistics")
+        async def logistics(
+            self,
+            cost_report_message: AgentMessage,
+            event_spec: EventSpecification,
+            event_datetime_iso: str,
+            session_id: str,
+        ) -> AgentMessage:
+            return await run_logistics(
+                cost_report_message=cost_report_message,
+                event_spec=event_spec,
+                event_datetime_iso=event_datetime_iso,
+                session_id=session_id,
+            )
+
+        @kernel_function(name="stock_manager")
+        async def stock_manager(
+            self,
+            logistics_plan_message: AgentMessage,
+            cost_report_message: AgentMessage,
+            session_id: str,
+        ) -> AgentMessage:
+            return await run_stock_manager(
+                logistics_plan_message=logistics_plan_message,
+                cost_report_message=cost_report_message,
+                session_id=session_id,
+            )
 
 
 def _now_utc() -> datetime:
@@ -447,6 +564,12 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
     start = time.perf_counter()
     session_id = str(uuid4())
 
+    kernel = _build_kernel()
+    _ = _build_autogen_orchestrator_agent()
+    plugin_name = "catering_agents"
+    if kernel is not None and kernel_function is not None:
+        kernel.add_plugin(CateringAgentsPlugin(), plugin_name=plugin_name)
+
     log_event(
         agent_id=AGENT_ID,
         action="pipeline_start",
@@ -455,7 +578,16 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
     )
 
     try:
-        concierge_message = await run_concierge(raw_customer_text=raw_customer_request, session_id=session_id)
+        if kernel is not None and kernel_function is not None:
+            result = await kernel.invoke(
+                function_name="concierge",
+                plugin_name=plugin_name,
+                raw_customer_text=raw_customer_request,
+                session_id=session_id,
+            )
+            concierge_message = result.value if result is not None else None
+        else:
+            concierge_message = await run_concierge(raw_customer_text=raw_customer_request, session_id=session_id)
         stopped = _stop_on_error(msg=concierge_message, failed_agent="concierge", session_id=session_id)
         if stopped is not None:
             return stopped
@@ -483,7 +615,16 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
             negotiation_round=0,
         )
 
-        menu_plan_message = await run_head_chef(event_spec=ctx.event_spec, session_id=ctx.session_id)
+        if kernel is not None and kernel_function is not None:
+            result = await kernel.invoke(
+                function_name="head_chef",
+                plugin_name=plugin_name,
+                event_spec=ctx.event_spec,
+                session_id=ctx.session_id,
+            )
+            menu_plan_message = result.value if result is not None else None
+        else:
+            menu_plan_message = await run_head_chef(event_spec=ctx.event_spec, session_id=ctx.session_id)
         stopped = _stop_on_error(msg=menu_plan_message, failed_agent="head_chef", session_id=session_id)
         if stopped is not None:
             return stopped
@@ -502,11 +643,21 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
         )
         _handoff(finished="head_chef", next_agent="accountant", session_id=session_id)
 
-        cost_report_message = await run_accountant(
-            menu_plan_message=menu_plan_message,
-            event_spec=ctx.event_spec,
-            session_id=ctx.session_id,
-        )
+        if kernel is not None and kernel_function is not None:
+            result = await kernel.invoke(
+                function_name="accountant",
+                plugin_name=plugin_name,
+                menu_plan_message=menu_plan_message,
+                event_spec=ctx.event_spec,
+                session_id=ctx.session_id,
+            )
+            cost_report_message = result.value if result is not None else None
+        else:
+            cost_report_message = await run_accountant(
+                menu_plan_message=menu_plan_message,
+                event_spec=ctx.event_spec,
+                session_id=ctx.session_id,
+            )
         stopped = _stop_on_error(msg=cost_report_message, failed_agent="accountant", session_id=session_id)
         if stopped is not None:
             return stopped
@@ -546,12 +697,23 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
                 },
             )
 
-            menu_plan_message = await revise_menu_plan(
-                event_spec=ctx.event_spec,
-                previous_menu_plan_message=menu_plan_message,
-                flagged_items=flagged,
-                session_id=ctx.session_id,
-            )
+            if kernel is not None and kernel_function is not None:
+                result = await kernel.invoke(
+                    function_name="revise_menu_plan",
+                    plugin_name=plugin_name,
+                    event_spec=ctx.event_spec,
+                    previous_menu_plan_message=menu_plan_message,
+                    flagged_items=flagged,
+                    session_id=ctx.session_id,
+                )
+                menu_plan_message = result.value if result is not None else None
+            else:
+                menu_plan_message = await revise_menu_plan(
+                    event_spec=ctx.event_spec,
+                    previous_menu_plan_message=menu_plan_message,
+                    flagged_items=flagged,
+                    session_id=ctx.session_id,
+                )
             stopped = _stop_on_error(msg=menu_plan_message, failed_agent="head_chef", session_id=session_id)
             if stopped is not None:
                 return stopped
@@ -571,11 +733,21 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
 
             _handoff(finished="head_chef", next_agent="accountant", session_id=session_id, details={"round": negotiation_rounds_used})
 
-            cost_report_message = await run_accountant(
-                menu_plan_message=menu_plan_message,
-                event_spec=ctx.event_spec,
-                session_id=ctx.session_id,
-            )
+            if kernel is not None and kernel_function is not None:
+                result = await kernel.invoke(
+                    function_name="accountant",
+                    plugin_name=plugin_name,
+                    menu_plan_message=menu_plan_message,
+                    event_spec=ctx.event_spec,
+                    session_id=ctx.session_id,
+                )
+                cost_report_message = result.value if result is not None else None
+            else:
+                cost_report_message = await run_accountant(
+                    menu_plan_message=menu_plan_message,
+                    event_spec=ctx.event_spec,
+                    session_id=ctx.session_id,
+                )
             stopped = _stop_on_error(msg=cost_report_message, failed_agent="accountant", session_id=session_id)
             if stopped is not None:
                 return stopped
@@ -602,12 +774,23 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
         _handoff(finished="accountant", next_agent="logistics", session_id=session_id)
 
         event_datetime_iso = f"{ctx.event_spec.event_date}T18:00:00+08:00"
-        logistics_plan_message = await run_logistics(
-            cost_report_message=cost_report_message,
-            event_spec=ctx.event_spec,
-            event_datetime_iso=event_datetime_iso,
-            session_id=ctx.session_id,
-        )
+        if kernel is not None and kernel_function is not None:
+            result = await kernel.invoke(
+                function_name="logistics",
+                plugin_name=plugin_name,
+                cost_report_message=cost_report_message,
+                event_spec=ctx.event_spec,
+                event_datetime_iso=event_datetime_iso,
+                session_id=ctx.session_id,
+            )
+            logistics_plan_message = result.value if result is not None else None
+        else:
+            logistics_plan_message = await run_logistics(
+                cost_report_message=cost_report_message,
+                event_spec=ctx.event_spec,
+                event_datetime_iso=event_datetime_iso,
+                session_id=ctx.session_id,
+            )
         stopped = _stop_on_error(msg=logistics_plan_message, failed_agent="logistics", session_id=session_id)
         if stopped is not None:
             return stopped
@@ -622,20 +805,30 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
 
         _handoff(finished="logistics", next_agent="stock_manager", session_id=session_id)
 
-        procurement_list_message = await run_stock_manager(
-            logistics_plan_message=logistics_plan_message,
-            cost_report_message=cost_report_message,
-            session_id=ctx.session_id,
-        )
-        stopped = _stop_on_error(msg=procurement_list_message, failed_agent="stock_manager", session_id=session_id)
+        if kernel is not None and kernel_function is not None:
+            result = await kernel.invoke(
+                function_name="stock_manager",
+                plugin_name=plugin_name,
+                logistics_plan_message=logistics_plan_message,
+                cost_report_message=cost_report_message,
+                session_id=ctx.session_id,
+            )
+            procurement_message = result.value if result is not None else None
+        else:
+            procurement_message = await run_stock_manager(
+                logistics_plan_message=logistics_plan_message,
+                cost_report_message=cost_report_message,
+                session_id=ctx.session_id,
+            )
+        stopped = _stop_on_error(msg=procurement_message, failed_agent="stock_manager", session_id=session_id)
         if stopped is not None:
             return stopped
-        if not isinstance(procurement_list_message.payload, ProcurementList):
+        if not isinstance(procurement_message.payload, ProcurementList):
             raise ValueError("Stock Manager did not return ProcurementList")
 
         shared_memory.set_agent_output(
             agent_id="stock_manager",
-            value=_payload_to_memory(procurement_list_message.payload),
+            value=_payload_to_memory(procurement_message.payload),
             writer_agent_id=AGENT_ID,
         )
 
@@ -646,7 +839,7 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
             menu_plan=menu_plan_message.payload,
             cost_report=cost_report_message.payload,
             logistics_plan=logistics_plan_message.payload,
-            procurement_list=procurement_list_message.payload,
+            procurement_list=procurement_message.payload,
             customer_summary="",
             total_processing_time_seconds=total_seconds,
             negotiation_rounds_used=negotiation_rounds_used,

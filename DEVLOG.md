@@ -318,6 +318,22 @@
 **Git commits made:**
 - Pending (tests confirmed stable; ready to commit).
 
+#### Session 10 — 2026-04-27
+**What we built / changed (Microsoft Agent Framework wrapper):**
+- **Semantic Kernel wrapper added (orchestration entry point)**
+  - Added a minimal Semantic Kernel `Kernel` construction in `orchestrator/engine.py`.
+  - Wrapped each existing agent call as a Semantic Kernel plugin function using `@kernel_function` (Concierge, Head Chef, Accountant, Logistics, Stock Manager, and menu revision).
+  - Routed the deterministic orchestration flow through `await kernel.invoke(...)` with a safe fallback to direct function calls if SK is unavailable.
+- **AutoGen presence (non-LLM-driven orchestration)**
+  - Constructed an AutoGen `AssistantAgent` (present and structured), without allowing it to drive orchestration decisions.
+
+**What broke and how we fixed it:**
+- `run_stock_manager()` signature mismatch when routed through the SK plugin.
+  - Fix: removed the unsupported `event_spec` argument from the SK wrapper and invocations.
+
+**Testing results:**
+- `venv\\Scripts\\python.exe -m tests.test_correctness`: **TOTAL: 23/23 checks passed**.
+
 ---
 
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT

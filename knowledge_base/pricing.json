@@ -41,6 +41,22 @@
     {"ingredient": "nata de coco", "unit": "kg", "price_php": 120.0},
     {"ingredient": "all-purpose cream", "unit": "L", "price_php": 170.0},
     {"ingredient": "condensed milk", "unit": "L", "price_php": 120.0},
-    {"ingredient": "pandan jelly", "unit": "kg", "price_php": 150.0}
+    {"ingredient": "pandan jelly", "unit": "kg", "price_php": 150.0},
+
+    {"ingredient": "apple", "unit": "kg", "price_php": 180},
+    {"ingredient": "banana", "unit": "kg", "price_php": 60},
+    {"ingredient": "orange", "unit": "kg", "price_php": 120},
+    {"ingredient": "grapes", "unit": "kg", "price_php": 250},
+    {"ingredient": "romaine lettuce", "unit": "kg", "price_php": 120},
+    {"ingredient": "olive oil", "unit": "L", "price_php": 480},
+    {"ingredient": "lemon", "unit": "kg", "price_php": 160},
+    {"ingredient": "broccoli", "unit": "kg", "price_php": 150},
+    {"ingredient": "cauliflower", "unit": "kg", "price_php": 130},
+    {"ingredient": "parmesan", "unit": "kg", "price_php": 800},
+    {"ingredient": "croutons", "unit": "kg", "price_php": 200},
+    {"ingredient": "rice", "unit": "kg", "price_php": 55},
+    {"ingredient": "egg", "unit": "kg", "price_php": 220},
+    {"ingredient": "peas", "unit": "kg", "price_php": 120},
+    {"ingredient": "salt", "unit": "kg", "price_php": 25}
   ]
 }

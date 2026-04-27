@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import uuid4
@@ -247,7 +248,12 @@ async def run_concierge(*, raw_customer_text: str, session_id: str) -> AgentMess
         content = (response.choices[0].message.content or "").strip()
         data = json.loads(content)
 
-        if not str(data.get("event_id") or "").strip():
+        event_id_val = str(data.get("event_id") or "").strip()
+        uuid_pattern = re.compile(
+            r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            re.IGNORECASE,
+        )
+        if not event_id_val or not uuid_pattern.match(event_id_val):
             data["event_id"] = str(uuid4())
 
         event_spec = _coerce_event_spec(data)

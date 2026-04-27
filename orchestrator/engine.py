@@ -840,7 +840,19 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
             cost_report=cost_report_message.payload,
             logistics_plan=logistics_plan_message.payload,
             procurement_list=procurement_message.payload,
-            customer_summary="",
+            customer_summary=(
+                f"{ctx.event_spec.guest_count} guests · "
+                f"{ctx.event_spec.event_date} · "
+                f"{ctx.event_spec.location} · "
+                f"PHP {ctx.event_spec.budget_php:,.0f} budget · "
+                f"{', '.join(ctx.event_spec.cuisine_preferences)} cuisine"
+                + (f" · Allergies: {', '.join(ctx.event_spec.allergies)}" if ctx.event_spec.allergies else "")
+                + (
+                    f" · Dietary: {', '.join(ctx.event_spec.dietary_restrictions)}"
+                    if ctx.event_spec.dietary_restrictions
+                    else ""
+                )
+            ),
             total_processing_time_seconds=total_seconds,
             negotiation_rounds_used=negotiation_rounds_used,
         )

@@ -209,7 +209,7 @@ def _estimate_scale_factor(*, servings: int) -> float:
     Returns:
         Scale factor (>= 1.0) used to multiply base ingredient quantities.
     """
-    base_servings = 50
+    base_servings = 8
     return max(1.0, float(servings) / float(base_servings))
 
 

@@ -686,6 +686,20 @@
   - System correctly stopped after max rounds
 - Pass/Fail: Pass
 
+**[Session 6] — Fix: Concierge event_id UUID validation**
+- Change: Replace placeholder-based check with UUID regex validation; if missing or not UUID, generate `uuid4()`.
+- Files: `agents/concierge.py`
+- Reason: GPT-4o sometimes returns `event_001` or other non-UUID strings.
+
+**[Session 6] — Fix: Pricing completeness for common ingredients**
+- Change: Added missing ingredient rows to `knowledge_base/pricing.json` (fruit, salad, pantry staples) to prevent silent underpricing when a price is missing.
+- Files: `knowledge_base/pricing.json`
+
+**[Session 6] — Test: Correctness suite after fixes**
+- Script: `venv\Scripts\python.exe -m tests.test_correctness`
+- Result: TOTAL 23/23 checks passed
+- Pass/Fail: Pass
+
 ---
 
 ### 🗺️ SECTION 7: DECISION LOG

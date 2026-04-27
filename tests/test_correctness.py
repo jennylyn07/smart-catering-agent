@@ -158,7 +158,7 @@ def _http_post_json(*, url: str, api_key: str, payload: dict[str, Any]) -> tuple
     req.add_header("Content-Type", "application/json")
     req.add_header("X-API-Key", api_key)
     try:
-        with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
+        with urllib.request.urlopen(req, timeout=120) as resp:  # noqa: S310
             body = resp.read().decode("utf-8", errors="replace")
             return int(resp.status), body
     except Exception as exc:

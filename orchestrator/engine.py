@@ -692,7 +692,7 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
                         "error_type": type(exc).__name__,
                     },
                 )
-                pass
+                print(f"[COSMOS WRITE FAILED] order_id={order_id} | {type(exc).__name__}: {exc}")
 
         return _wrap_message(
             payload=final_payload,

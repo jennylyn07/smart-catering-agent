@@ -303,6 +303,21 @@
   - To: `f"{category}_{source_file.stem}_{i}"`
   - Reason: avoid `InvalidDocumentKey` errors during document upload.
 
+#### Session 9 — 2026-04-27
+**What we built / changed (correctness stability + verification):**
+- **Cosmos persistence visibility**
+  - Updated `orchestrator/engine.py` to surface Cosmos persistence failures during orchestration runs (so failures are visible in test output rather than being silently swallowed).
+- **Correctness test suite stability**
+  - Updated `tests/test_correctness.py` `_http_post_json()` to increase the backend request timeout from 10 seconds to 120 seconds to prevent intermittent timeouts on long-running endpoints.
+- **Repeatable test execution with environment loaded**
+  - Confirmed the correctness suite can be rerun reliably when `.env` values are loaded into the current PowerShell process environment prior to invoking the venv interpreter.
+
+**Testing results:**
+- Correctness suite re-run multiple times: **TOTAL: 23/23 checks passed**.
+
+**Git commits made:**
+- Pending (tests confirmed stable; ready to commit).
+
 ---
 
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT

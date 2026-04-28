@@ -391,6 +391,22 @@
 **Testing results:**
 - `venv\\Scripts\\python.exe -m tests.test_correctness`: **TOTAL: 23/23 checks passed**.
 
+#### Session 14 — 2026-04-28
+**What we built / changed (Logistics Lead GPT-4o upgrade — Prompt C):**
+- **Context-aware notes interpretation (Logistics Lead)**
+  - Updated `agents/logistics.py` to interpret special notes via GPT-4o instead of keyword matching.
+  - GPT receives the full `event_spec.notes`, event context (guests/cuisine/occasion), and a deterministic timeline summary.
+  - GPT returns structured JSON additions: `staffing_notes`, `extra_timeline_tasks`, and `setup_flags` (including `early_setup`).
+- **Deterministic schedule math preserved**
+  - Kept all backwards time calculations deterministic (timeline base, delivery window math, and prep/delivery time math unchanged).
+- **Graceful degradation + reasoning visibility**
+  - Removed `_notes_include()` and all keyword-based fallback logic.
+  - If GPT is unavailable, logistics proceeds without notes analysis and logs a warning.
+  - Added `logistics_ai_reasoning` to the logistics success log event for traceability.
+
+**Testing results:**
+- `venv\\Scripts\\python.exe -m tests.test_correctness`: **TOTAL: 23/23 checks passed** (Section 3 Notes: **3/3**).
+
 ---
 
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT

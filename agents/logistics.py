@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from pydantic import ValidationError
 
+from utils.azure_client import create_async_azure_openai_client, get_azure_openai_deployment_name
 from utils.json_schema import (
     AgentMessage,
     CostReport,
@@ -137,12 +138,6 @@ def _fmt(dt: datetime) -> str:
     return dt.isoformat()
 
 
-def _notes_include(notes: Optional[str], needle: str) -> bool:
-    if not notes:
-        return False
-    return needle.strip().lower() in notes.strip().lower()
-
-
 def _load_suppliers() -> list[dict[str, Any]]:
     """Load supplier data from the suppliers knowledge base.
 
@@ -245,6 +240,78 @@ def _timeline_from_event(event_dt: datetime) -> list[TimelineTask]:
     return tasks
 
 
+async def _gpt_interpret_notes(
+    notes: Optional[str],
+    event_spec: "EventSpecification",
+    timeline_summary: str,
+) -> Optional[dict]:
+    """Use GPT-4o to interpret event notes for logistics planning.
+    Returns a dict with staffing_notes, extra_timeline_tasks, setup_flags
+    or None if GPT fails or notes are empty.
+    """
+    if not notes or not notes.strip():
+        return None
+
+    try:
+        client = create_async_azure_openai_client()
+        deployment = get_azure_openai_deployment_name()
+
+        system_prompt = (
+            "You are a senior catering logistics expert with 15 years of operational experience. "
+            "Your role is to read event notes and extract every logistics implication — "
+            "staffing needs, service style requirements, setup tasks, and timing adjustments.\n\n"
+            "Think like a real operations expert who has run hundreds of events. "
+            "Consider what the notes mean for the team on the ground: "
+            "how many staff are needed, how should the venue be set up, "
+            "what tasks need to be added to the timeline, does prep need to start earlier than usual?\n\n"
+            "Be specific and actionable. A note that mentions a service style, venue condition, "
+            "guest requirement, or timing constraint always has real logistics consequences — "
+            "your job is to surface them clearly.\n\n"
+            "Return ONLY a valid JSON object with exactly these three keys:\n"
+            '- "staffing_notes": a clear string describing all staffing and service implications '
+            "(null only if the notes contain absolutely no logistics relevance)\n"
+            '- "extra_timeline_tasks": a list of specific actionable task strings to add to the '
+            "schedule implied by the notes (empty list if none)\n"
+            '- "setup_flags": a list of setup requirement strings; include "early_setup" if the '
+            "notes imply prep should start earlier than the standard 12-hour window (empty list if none)\n\n"
+            "No markdown. No preamble. No explanation. Output the JSON object only."
+        )
+
+        user_prompt = (
+            f"Event notes: {notes}\n\n"
+            f"Event context: {event_spec.guest_count} guests, "
+            f"cuisine: {event_spec.cuisine_preferences}, "
+            f"occasion: {event_spec.event_name}\n\n"
+            f"Already scheduled timeline tasks:\n{timeline_summary}\n\n"
+            "Return the JSON object only."
+        )
+
+        response = await client.chat.completions.create(
+            model=deployment,
+            temperature=0.3,
+            max_tokens=300,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+        )
+
+        content = (response.choices[0].message.content or "").strip()
+        result = json.loads(content)
+        if not isinstance(result, dict):
+            return None
+        return result
+
+    except Exception as exc:  # noqa: BLE001
+        log_event(
+            agent_id=AGENT_ID,
+            action="gpt_interpret_notes",
+            status="error",
+            details={"error": str(exc), "error_type": type(exc).__name__},
+        )
+        return None
+
+
 async def run_logistics(
     *,
     cost_report_message: AgentMessage,
@@ -284,8 +351,38 @@ async def run_logistics(
         timeline = _timeline_from_event(event_dt)
 
         prep_start_dt = event_dt - timedelta(hours=12)
-        if _notes_include(notes, "5am") or _notes_include(notes, "early setup"):
-            prep_start_dt = min(prep_start_dt, event_dt - timedelta(hours=14))
+
+        timeline_summary = "\n".join(f"- {t.description} at {t.time}" for t in timeline)
+        gpt_result = await _gpt_interpret_notes(notes, event_spec, timeline_summary)
+
+        if gpt_result is not None:
+            ai_reasoning = json.dumps(gpt_result)
+            staffing_notes = gpt_result.get("staffing_notes") or None
+            for task_desc in gpt_result.get("extra_timeline_tasks", []):
+                if task_desc and str(task_desc).strip():
+                    timeline.append(
+                        TimelineTask(
+                            time=_fmt(event_dt),
+                            description=str(task_desc).strip(),
+                            owner="logistics",
+                        )
+                    )
+            if "early_setup" in gpt_result.get("setup_flags", []):
+                prep_start_dt = min(prep_start_dt, event_dt - timedelta(hours=14))
+                prep_start_time = _fmt(prep_start_dt)
+
+        else:
+            staffing_notes = None
+            ai_reasoning = "graceful_degradation: gpt_unavailable"
+            log_event(
+                agent_id=AGENT_ID,
+                action="gpt_interpret_notes",
+                status="warning",
+                details={
+                    "warning": "GPT unavailable for notes interpretation; proceeding without notes analysis",
+                    "notes_provided": bool(notes and notes.strip()),
+                },
+            )
 
         prep_start_time = _fmt(prep_start_dt)
         delivery_time = _fmt(event_dt - timedelta(hours=2))
@@ -306,53 +403,6 @@ async def run_logistics(
         if most_prep_dishes:
             critical_path.append("Most prep-intensive dishes: " + ", ".join(most_prep_dishes))
         critical_path.append("Venue access and setup")
-
-        staffing_notes: Optional[str] = None
-        if _notes_include(notes, "plated"):
-            staffing_notes = "Plated service requested; assign extra plating/runner staff and allocate time for plating."
-            plating_dt = event_dt - timedelta(minutes=45)
-            timeline.append(
-                TimelineTask(
-                    time=_fmt(plating_dt),
-                    description="Plated service: assign plating staff and organize plating stations",
-                    owner="logistics",
-                )
-            )
-
-        if _notes_include(notes, "buffet"):
-            prefix = "" if staffing_notes is None else staffing_notes + " "
-            staffing_notes = prefix + "Buffet service requested; set up food stations and assign replenishment staff."
-            buffet_dt = event_dt - timedelta(hours=2)
-            timeline.append(
-                TimelineTask(
-                    time=_fmt(buffet_dt),
-                    description="Buffet setup: arrange stations and chafing dishes",
-                    owner="logistics",
-                )
-            )
-
-        if _notes_include(notes, "3-course"):
-            prefix = "" if staffing_notes is None else staffing_notes + " "
-            staffing_notes = prefix + "3-course service requested; plan pacing and service staff by course."
-            timeline.extend(
-                [
-                    TimelineTask(
-                        time=_fmt(event_dt - timedelta(minutes=30)),
-                        description="Appetizer service window",
-                        owner="logistics",
-                    ),
-                    TimelineTask(
-                        time=_fmt(event_dt),
-                        description="Main course service window",
-                        owner="logistics",
-                    ),
-                    TimelineTask(
-                        time=_fmt(event_dt + timedelta(minutes=45)),
-                        description="Dessert service window",
-                        owner="logistics",
-                    ),
-                ]
-            )
 
         timeline.sort(key=lambda t: t.time)
 
@@ -385,6 +435,7 @@ async def run_logistics(
                 "delivery_time": plan.delivery_time,
                 "buffer_time_minutes": plan.buffer_time_minutes,
                 "critical_path_count": len(plan.critical_path_items),
+                "logistics_ai_reasoning": ai_reasoning,
             },
         )
 

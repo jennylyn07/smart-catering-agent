@@ -10,7 +10,12 @@ from uuid import uuid4
 
 from pydantic import ValidationError
 
-from utils.azure_client import create_search_client, try_load_settings
+from utils.azure_client import (
+    create_async_azure_openai_client,
+    create_search_client,
+    get_azure_openai_deployment_name,
+    try_load_settings,
+)
 from utils.json_schema import (
     AgentMessage,
     ErrorMessage,
@@ -126,6 +131,202 @@ def _system_prompt() -> str:
         "2) Never include dishes that violate allergies or dietary restrictions listed in the event specification.\n"
         "3) Output must be a structured menu plan; do not include extra text beyond the required fields.\n"
     )
+
+
+def _head_chef_gpt_system_prompt() -> str:
+    return (
+        "You are a professional catering Head Chef and menu curator.\n"
+        "Your task: select dishes ONLY from the provided candidate recipe list that fit the event.\n\n"
+        "NON-NEGOTIABLE SAFETY RULES:\n"
+        "1) Dietary restrictions and allergies are hard constraints. Never include a dish that violates them.\n"
+        "2) Use real culinary knowledge; do not rely solely on recipe tags.\n"
+        "3) When uncertain, assume the ingredient is unsafe and do NOT select that dish.\n\n"
+        "ALLERGY HANDLING:\n"
+        "- If an allergy is listed, exclude dishes containing that allergen (including common forms/derivatives).\n"
+        "- Examples: dairy includes milk, butter, cheese, cream, condensed/evaporated milk, parmesan, feta.\n"
+        "- Egg includes whole egg, egg yolk/white, mayonnaise, custards/flans.\n"
+        "- Shellfish includes shrimp/prawn and similar.\n"
+        "- Fish includes fish sauce/patis, fish, anchovy-based sauces.\n\n"
+        "DIETARY RESTRICTIONS (treat as strict):\n"
+        "- vegan: no meat, fish, shellfish, eggs, dairy.\n"
+        "- vegetarian: no meat, fish, shellfish.\n"
+        "- halal: no pork, bacon, lard, and avoid obviously non-halal meats; if unsure, do not select.\n"
+        "- no_meat: exclude chicken, beef, pork, seafood, etc.\n"
+        "- no_dairy: exclude milk/butter/cheese/cream/condensed/evaporated milk.\n"
+        "- no_eggs: exclude egg and egg-based components.\n\n"
+        "PRO CHEF MENU-CURRATION RULES:\n"
+        "- Aim for variety across categories when possible (e.g., appetizer/main/noodles or rice/vegetable/soup/salad/dessert).\n"
+        "- Avoid selecting multiple dishes that are too similar (e.g., two tomato-based pastas, two fried rice dishes).\n"
+        "- Balance richness: pair heavier mains with lighter vegetable/salad/soup sides.\n"
+        "- Prefer crowd-pleasers and practical catering dishes.\n"
+        "- Match the occasion: weddings and debuts call for elevated, presentable dishes; corporate events need easy-to-serve, portionable items; casual parties favor familiar comfort food.\n\n"
+        "OUTPUT FORMAT (strict):\n"
+        "Return ONLY a valid JSON array of objects. Each object MUST be:\n"
+        '{"id": "<recipe_id>", "reason": "<short reason>"}\n'
+        "No extra keys. No markdown. No additional text."
+    )
+
+
+def _parse_json_array(text: str) -> list[Any]:
+    """Parse a JSON array from a model response.
+
+    The model is instructed to return only a JSON array, but we still defensively
+    extract the first array-looking span if there is stray text.
+    """
+
+    raw = (text or "").strip()
+    if not raw:
+        raise ValueError("Empty model response")
+
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        start = raw.find("[")
+        end = raw.rfind("]")
+        if start == -1 or end == -1 or end <= start:
+            raise
+        parsed = json.loads(raw[start : end + 1])
+
+    if not isinstance(parsed, list):
+        raise ValueError("Model response is not a JSON array")
+    return parsed
+
+
+async def _gpt_select_recipe_ids(
+    *,
+    event_spec: EventSpecification,
+    candidate_recipes: list[dict[str, Any]],
+    desired_categories: list[str],
+    max_items: int,
+) -> list[dict[str, str]]:
+    client = create_async_azure_openai_client()
+    deployment = get_azure_openai_deployment_name()
+
+    payload = {
+        "event": {
+            "event_name": event_spec.event_name,
+            "occasion": event_spec.event_name,
+            "guest_count": event_spec.guest_count,
+            "dietary_restrictions": list(event_spec.dietary_restrictions or []),
+            "allergies": list(event_spec.allergies or []),
+            "notes": event_spec.notes,
+        },
+        "desired_categories": desired_categories,
+        "max_items": max_items,
+        "candidate_recipes": candidate_recipes,
+        "output_schema": [
+            {"id": "<recipe_id>", "rationale": "<one-line>"}
+        ],
+    }
+
+    user_prompt = (
+        "Select dishes from candidate_recipes that best fit the event. "
+        "Hard requirements: must satisfy ALL dietary_restrictions and allergies. "
+        "Aim for variety across categories in desired_categories. "
+        "Return ONLY a JSON array of objects with keys: id, rationale.\n\n"
+        + json.dumps(payload, ensure_ascii=False)
+    )
+
+    response = await client.chat.completions.create(
+        model=deployment,
+        temperature=0.8,
+        max_tokens=700,
+        messages=[
+            {"role": "system", "content": _head_chef_gpt_system_prompt()},
+            {"role": "user", "content": user_prompt},
+        ],
+    )
+
+    content = (response.choices[0].message.content or "").strip()
+    rows = _parse_json_array(content)
+
+    selected: list[dict[str, str]] = []
+    for item in rows:
+        if not isinstance(item, dict):
+            continue
+        rid = str(item.get("id") or "").strip()
+        rationale = str(item.get("rationale") or "").strip()
+        if not rid:
+            continue
+        selected.append({"id": rid, "rationale": rationale})
+        if len(selected) >= max_items:
+            break
+    return selected
+
+
+async def _gpt_select_replacement_recipe_ids(
+    *,
+    event_spec: EventSpecification,
+    flagged_items: list[str],
+    kept_menu_items: list[MenuItem],
+    candidate_recipes: list[dict[str, Any]],
+    desired_categories: list[str],
+    max_items: int,
+) -> list[dict[str, str]]:
+    client = create_async_azure_openai_client()
+    deployment = get_azure_openai_deployment_name()
+
+    payload = {
+        "event": {
+            "event_name": event_spec.event_name,
+            "occasion": event_spec.event_name,
+            "guest_count": event_spec.guest_count,
+            "dietary_restrictions": list(event_spec.dietary_restrictions or []),
+            "allergies": list(event_spec.allergies or []),
+            "notes": event_spec.notes,
+        },
+        "flagged_items": [str(x) for x in (flagged_items or []) if str(x).strip()],
+        "kept_menu_items": [
+            {
+                "name": i.name,
+                "category": i.category,
+                "ingredients": list(i.ingredients or []),
+            }
+            for i in (kept_menu_items or [])
+        ],
+        "desired_categories": desired_categories,
+        "max_items": max_items,
+        "safe_candidate_recipes": candidate_recipes,
+        "output_schema": [
+            {"id": "<recipe_id>", "rationale": "<one-line>"}
+        ],
+    }
+
+    user_prompt = (
+        "You are revising a menu after budget review. "
+        "Replace the flagged items with the best substitutes from safe_candidate_recipes. "
+        "Hard requirements: must satisfy ALL dietary_restrictions and allergies. "
+        "Prefer substitutes that match the same category and keep overall variety across desired_categories. "
+        "Do not select any dish whose name overlaps flagged items. "
+        "Return ONLY a JSON array of objects with keys: id, rationale.\n\n"
+        + json.dumps(payload, ensure_ascii=False)
+    )
+
+    response = await client.chat.completions.create(
+        model=deployment,
+        temperature=0.2,
+        max_tokens=700,
+        messages=[
+            {"role": "system", "content": _head_chef_gpt_system_prompt()},
+            {"role": "user", "content": user_prompt},
+        ],
+    )
+
+    content = (response.choices[0].message.content or "").strip()
+    rows = _parse_json_array(content)
+
+    selected: list[dict[str, str]] = []
+    for item in rows:
+        if not isinstance(item, dict):
+            continue
+        rid = str(item.get("id") or "").strip()
+        rationale = str(item.get("rationale") or "").strip()
+        if not rid:
+            continue
+        selected.append({"id": rid, "rationale": rationale})
+        if len(selected) >= max_items:
+            break
+    return selected
 
 
 def _load_recipes() -> list[dict[str, Any]]:
@@ -365,6 +566,42 @@ def _recipe_matches_dietary_restrictions(
     if "halal" in normalized and "pork" in ingredient_names:
         return False
 
+    no_meat_block = {
+        "chicken",
+        "beef",
+        "pork",
+        "lamb",
+        "fish",
+        "shrimp",
+        "meat",
+        "bacon",
+        "sausage",
+        "longganisa",
+        "ground pork",
+    }
+
+    no_dairy_block = {
+        "dairy",
+        "butter",
+        "cheese",
+        "cream",
+        "milk",
+        "parmesan",
+        "condensed milk",
+        "all-purpose cream",
+    }
+
+    no_eggs_block = {"egg", "eggs"}
+
+    if "no_meat" in normalized and _contains_any(no_meat_block):
+        return False
+
+    if "no_dairy" in normalized and _contains_any(no_dairy_block):
+        return False
+
+    if "no_eggs" in normalized and _contains_any(no_eggs_block):
+        return False
+
     return True
 
 
@@ -390,7 +627,15 @@ def _recipe_is_safe(
     return _recipe_matches_dietary_restrictions(recipe, dietary_restrictions)
 
 
-def _build_menu_items(*, recipes: list[dict[str, Any]], guest_count: int) -> list[MenuItem]:
+async def _build_menu_items(
+    *,
+    event_spec: EventSpecification,
+    recipes: list[dict[str, Any]],
+    safe_recipes: list[dict[str, Any]],
+    blocked_allergens: set[str],
+    dietary_restrictions: list[str],
+    guest_count: int,
+) -> list[MenuItem]:
     """Select a small menu across key categories and build MenuItem objects.
 
     Args:
@@ -400,17 +645,83 @@ def _build_menu_items(*, recipes: list[dict[str, Any]], guest_count: int) -> lis
     Returns:
         A list of MenuItem objects representing the proposed menu.
     """
-    desired_order = ["appetizer", "main", "noodles", "vegetable", "dessert"]
+    priority = [
+        "appetizer",
+        "main",
+        "noodles",
+        "pasta",
+        "rice",
+        "vegetable",
+        "salad",
+        "soup",
+        "dessert",
+    ]
+
+    available_categories: set[str] = set()
+    for r in recipes:
+        cat = str(r.get("category") or "").strip().lower()
+        if cat:
+            available_categories.add(cat)
+
+    desired_order = [c for c in priority if c in available_categories]
+    if not desired_order:
+        desired_order = sorted(available_categories)
     selected: list[dict[str, Any]] = []
 
-    recipes = list(recipes)  # make a copy
-    random.shuffle(recipes)
+    try:
+        gpt_rows = await _gpt_select_recipe_ids(
+            event_spec=event_spec,
+            candidate_recipes=recipes,
+            desired_categories=desired_order,
+            max_items=len(desired_order),
+        )
 
-    for category in desired_order:
-        for r in recipes:
-            if r.get("category") == category and r not in selected:
-                selected.append(r)
-                break
+        by_id = {
+            str(r.get("id") or "").strip(): r
+            for r in recipes
+            if str(r.get("id") or "").strip()
+        }
+
+        for row in gpt_rows:
+            rid = row.get("id")
+            recipe = by_id.get(rid)
+            if not isinstance(recipe, dict):
+                continue
+            if not _recipe_is_safe(recipe, blocked_allergens, dietary_restrictions):
+                continue
+            cat = str(recipe.get("category") or "").strip().lower()
+            if cat and cat in desired_order and recipe not in selected:
+                selected.append(recipe)
+
+        used_ids = {str(r.get("id") or "").strip() for r in selected}
+        safe_pool = [
+            r
+            for r in safe_recipes
+            if str(r.get("id") or "").strip() and str(r.get("id") or "").strip() not in used_ids
+        ]
+        for category in desired_order:
+            if any(str(r.get("category") or "").strip().lower() == category for r in selected):
+                continue
+            for r in safe_pool:
+                if str(r.get("category") or "").strip().lower() == category:
+                    selected.append(r)
+                    break
+
+    except Exception as exc:  # noqa: BLE001
+        log_event(
+            agent_id=AGENT_ID,
+            action="gpt_menu_selection",
+            status="error",
+            details={"error": str(exc), "error_type": type(exc).__name__},
+        )
+
+        fallback = list(safe_recipes)
+        random.shuffle(fallback)
+        for category in desired_order:
+            for r in fallback:
+                if r.get("category") == category and r not in selected:
+                    selected.append(r)
+                    break
 
     if not selected:
         raise ValueError("No safe recipes available for the given constraints")
@@ -530,32 +841,105 @@ async def revise_menu_plan(
         # Fill any missing categories with the first safe recipe not already used.
         used_names = {i.name.strip().lower() for i in kept_items}
         additions: list[MenuItem] = []
-        safe_recipes = list(safe_recipes)
-        random.shuffle(safe_recipes)
-        for cat in desired_categories:
-            if cat in existing_categories:
-                continue
-            for r in safe_recipes:
-                if str(r.get("category") or "").strip().lower() != cat:
+
+        safe_by_id = {
+            str(r.get("id") or "").strip(): r
+            for r in safe_recipes
+            if str(r.get("id") or "").strip()
+        }
+
+        try:
+            gpt_rows = await _gpt_select_replacement_recipe_ids(
+                event_spec=event_spec,
+                flagged_items=flagged_items,
+                kept_menu_items=kept_items,
+                candidate_recipes=safe_recipes,
+                desired_categories=desired_categories,
+                max_items=len(desired_categories),
+            )
+
+            picked: list[dict[str, Any]] = []
+            for row in gpt_rows:
+                rid = row.get("id")
+                recipe = safe_by_id.get(rid)
+                if not isinstance(recipe, dict):
                     continue
-                name = str(r.get("name") or "").strip()
+                name = str(recipe.get("name") or "").strip()
                 if not name:
                     continue
                 if name.lower() in flagged:
                     continue
                 if name.lower() in used_names:
                     continue
-                ingredients = [str(i.get("name")) for i in (r.get("ingredients") or []) if i.get("name")]
-                additions.append(
-                    MenuItem(
-                        name=name,
-                        category=cat,
-                        servings=max(1, int(event_spec.guest_count)),
-                        ingredients=ingredients,
+                picked.append(recipe)
+
+            for cat in desired_categories:
+                if cat in existing_categories:
+                    continue
+                for r in picked:
+                    if str(r.get("category") or "").strip().lower() != cat:
+                        continue
+                    name = str(r.get("name") or "").strip()
+                    if not name:
+                        continue
+                    if name.lower() in flagged:
+                        continue
+                    if name.lower() in used_names:
+                        continue
+                    ingredients = [
+                        str(i.get("name"))
+                        for i in (r.get("ingredients") or [])
+                        if i.get("name")
+                    ]
+                    additions.append(
+                        MenuItem(
+                            name=name,
+                            category=cat,
+                            servings=max(1, int(event_spec.guest_count)),
+                            ingredients=ingredients,
+                        )
                     )
-                )
-                used_names.add(name.lower())
-                break
+                    used_names.add(name.lower())
+                    break
+
+        except Exception as exc:  # noqa: BLE001
+            log_event(
+                agent_id=AGENT_ID,
+                action="gpt_menu_revision",
+                status="error",
+                details={"error": str(exc), "error_type": type(exc).__name__},
+            )
+
+            safe_recipes = list(safe_recipes)
+            random.shuffle(safe_recipes)
+            for cat in desired_categories:
+                if cat in existing_categories:
+                    continue
+                for r in safe_recipes:
+                    if str(r.get("category") or "").strip().lower() != cat:
+                        continue
+                    name = str(r.get("name") or "").strip()
+                    if not name:
+                        continue
+                    if name.lower() in flagged:
+                        continue
+                    if name.lower() in used_names:
+                        continue
+                    ingredients = [
+                        str(i.get("name"))
+                        for i in (r.get("ingredients") or [])
+                        if i.get("name")
+                    ]
+                    additions.append(
+                        MenuItem(
+                            name=name,
+                            category=cat,
+                            servings=max(1, int(event_spec.guest_count)),
+                            ingredients=ingredients,
+                        )
+                    )
+                    used_names.add(name.lower())
+                    break
 
         revised_items = kept_items + additions
         if not revised_items:
@@ -675,7 +1059,14 @@ async def run_head_chef(*, event_spec: EventSpecification, session_id: str) -> A
                 + f"allergies={event_spec.allergies})."
             )
 
-        menu_items = _build_menu_items(recipes=safe_recipes, guest_count=event_spec.guest_count)
+        menu_items = await _build_menu_items(
+            event_spec=event_spec,
+            recipes=recipes,
+            safe_recipes=safe_recipes,
+            blocked_allergens=blocked_allergens,
+            dietary_restrictions=event_spec.dietary_restrictions,
+            guest_count=event_spec.guest_count,
+        )
 
         plan = MenuPlan(
             event_id=event_spec.event_id,

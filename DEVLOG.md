@@ -334,6 +334,47 @@
 **Testing results:**
 - `venv\\Scripts\\python.exe -m tests.test_correctness`: **TOTAL: 23/23 checks passed**.
 
+#### Session 11 — 2026-04-28
+**What we built / changed (Head Chef GPT-4o + safety + orchestration fixes):**
+- **Head Chef upgraded to GPT-4o reasoning (selection + substitution)**
+  - Shifted menu selection from deterministic category picking / shuffle toward GPT-driven recipe ID selection (with strict JSON output parsing + fallback).
+- **UUID fix (Concierge event_id reliability)**
+  - Hardened event_id validation so placeholder or non-UUID values are replaced with `uuid4()`.
+- **Portion sizing / cost scaling fix (Accountant base servings)**
+  - Adjusted the cost scaling base servings assumption to match the actual per-recipe ingredient quantities.
+- **customer_summary fix (orchestrator final output)**
+  - Ensured final plans include a non-empty `customer_summary` derived from the event spec.
+- **Dietary guardrails (no_meat / no_dairy / no_eggs)**
+  - Added explicit restriction enforcement beyond tags via ingredient-name blocking.
+
+**Knowledge base expansion (recipes + pricing):**
+- **Added 25 new recipes** to `knowledge_base/recipes.json` (kept schema consistent with existing recipes).
+  - Included allergen corrections before applying (fish sauce / egg / dairy / shellfish cases).
+- **Added 57 new pricing entries** to `knowledge_base/pricing.json`.
+  - Included 3 price corrections before applying: lemongrass, calamansi juice, shrimp.
+
+**Testing results:**
+- `venv\\Scripts\\python.exe -m tests.test_correctness`: **TOTAL: 23/23 checks passed**.
+
+#### Session 12 — 2026-04-28
+**What we built / changed (menu variety + selection quality improvements):**
+- **Dynamic category selection (Head Chef)**
+  - Replaced a hardcoded category list with a derived `desired_order` based on available recipe categories, using a priority order.
+- **GPT system prompt enrichment (Head Chef)**
+  - Expanded the system prompt with:
+    - Non-negotiable safety rules
+    - Allergy handling examples (including fish sauce and leche flan/custard-style egg exposure)
+    - Strict dietary restriction handling
+    - Professional menu-curation rules (including occasion matching)
+
+**Variety test (manual 3-run API call):**
+- Request used: "Debut party for 80 guests, Filipino cuisine, PHP 40000 budget, mixed crowd, no special dietary needs"
+- Run 1: Chicken Adobo, Pancit Canton, Lumpiang Shanghai, Ginataang Gulay, Buko Pandan
+- Run 2: Chicken Adobo, Pancit Canton, Pork Sinigang, Lumpiang Shanghai, Buko Pandan, Laing
+- Run 3: Chicken Adobo, Pancit Canton, Ginataang Gulay, Lumpiang Shanghai, Buko Pandan
+- Observation: Section 2 passes because runs are not identical, but most dishes repeat (4/5 overlap) and none of the 25 new recipes were selected.
+- Root cause (known issue): RAG index still stores the full recipe set as a single blob, so GPT-4o biases toward the most familiar dishes. Index chunking is the planned fix.
+
 ---
 
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT
@@ -512,6 +553,18 @@
 **Session 2 — PowerShell curl alias confusion**
 - What happened: `curl` invoked Invoke-WebRequest and failed header parsing.
 - How we fixed it: Used `curl.exe` for GET and `Invoke-RestMethod` for POST requests.
+
+**Session 11 — Hidden allergens surfaced during knowledge base expansion**
+- What happened: Several new recipes had allergens that were easy to miss without ingredient-level review.
+- Examples:
+  - Fish exposure via fish sauce / patis
+  - Egg exposure via leche flan / custard components
+- Lesson: Always cross-check allergens against ingredient names, not just recipe labels.
+
+**Session 11 — Local price inflation skewed early cost assumptions**
+- What happened: Initial “reasonable” prices were too high for certain items (e.g., lemongrass, calamansi juice, shrimp).
+- How we fixed it: Corrected the 3 items before applying the pricing patch.
+- Lesson: Keep a quick sanity range for common PH market prices and adjust before locking the pricing KB.
 
 ---
 
@@ -700,6 +753,15 @@
 - Result: TOTAL 23/23 checks passed
 - Pass/Fail: Pass
 
+**[Session 12] — Test: Manual variety check (3 runs)**
+- Endpoint: POST `/api/v1/catering/order`
+- Input: Debut party (80 guests, Filipino, PHP 40,000)
+- Runs:
+  - Run 1: Chicken Adobo, Pancit Canton, Lumpiang Shanghai, Ginataang Gulay, Buko Pandan
+  - Run 2: Chicken Adobo, Pancit Canton, Pork Sinigang, Lumpiang Shanghai, Buko Pandan, Laing
+  - Run 3: Chicken Adobo, Pancit Canton, Ginataang Gulay, Lumpiang Shanghai, Buko Pandan
+- Result: PASS (non-identical runs), with the noted limitation that new recipes were not selected due to the RAG “single blob” issue.
+
 ---
 
 ### 🗺️ SECTION 7: DECISION LOG
@@ -717,6 +779,21 @@
 - Why: Protects the endpoint from accidental or malicious request bursts.
 - What we chose: SlowAPI with 10 requests per minute.
 - Session: Session 2
+
+**Decision: Use `dietary_flags` and omit `dietary_tags` for new recipes**
+- Why: Existing code already supports `dietary_flags`, and we wanted a single canonical field for new entries.
+- Trade-offs: Some downstream checks still reference `dietary_tags`, so Head Chef continues to support both.
+- Session: Session 11
+
+**Decision: Price semi-prepared items directly (no decomposition)**
+- Why: The system matches ingredient names directly; recipe decomposition would require a different data model.
+- Examples: bechamel sauce, cake base, ube halaya, leche flan, sweetened beans.
+- Session: Session 11
+
+**Decision: Keep `safe_pool` category fill as-is (defer retry-loop redesign)**
+- Why: The current GPT-first selection + safe_pool fill + shuffle fallback is stable and passes correctness.
+- Trade-offs: A more advanced retry loop could improve diversity, but was deferred until after fixing the RAG blob indexing issue.
+- Session: Session 12
 
 ---
 
@@ -760,6 +837,9 @@
 [ ] Real-time adaptation working
 [ ] Multi-event handling working
 [ ] Day 6 commit pushed to GitHub
+
+**Next known fix (planned):**
+- Split/chunk the Azure Search recipe index so GPT retrieves per-recipe documents instead of one aggregated blob (improves selection diversity and use of new recipes).
 
 **Phase 6 — Polish**
 [ ] All edge cases tested

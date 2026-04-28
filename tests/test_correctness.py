@@ -283,8 +283,6 @@ async def _section_1_correctness_matrix(report: ReportWriter) -> list[CheckResul
         "fish",
         "shrimp",
         "meat",
-        "adobo",
-        "sisig",
         "lechon",
         "liempo",
         "bangus",

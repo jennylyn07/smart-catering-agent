@@ -421,7 +421,7 @@ async def _load_candidate_recipes(*, event_spec: EventSpecification) -> list[dic
             results = await search_client.search(
                 search_text=query,
                 filter="category eq 'recipes'",
-                top=50,
+                top=49,
             )
 
             candidates: list[dict[str, Any]] = []
@@ -635,7 +635,7 @@ async def _build_menu_items(
     blocked_allergens: set[str],
     dietary_restrictions: list[str],
     guest_count: int,
-) -> list[MenuItem]:
+) -> tuple[list[MenuItem], Optional[str]]:
     """Select a small menu across key categories and build MenuItem objects.
 
     Args:
@@ -667,6 +667,7 @@ async def _build_menu_items(
     if not desired_order:
         desired_order = sorted(available_categories)
     selected: list[dict[str, Any]] = []
+    gpt_rationale: Optional[str] = None
 
     try:
         gpt_rows = await _gpt_select_recipe_ids(
@@ -675,6 +676,9 @@ async def _build_menu_items(
             desired_categories=desired_order,
             max_items=len(desired_order),
         )
+
+        reasons = [str(r.get("rationale")).strip() for r in gpt_rows if str(r.get("rationale") or "").strip()]
+        gpt_rationale = " | ".join(reasons) if reasons else None
 
         by_id = {
             str(r.get("id") or "").strip(): r
@@ -739,7 +743,7 @@ async def _build_menu_items(
         )
         items.append(item)
 
-    return items
+    return items, gpt_rationale
 
 
 def _filter_by_cuisine(recipes: list[dict[str, Any]], cuisine_preferences: list[str]) -> list[dict[str, Any]]:
@@ -1036,7 +1040,23 @@ async def run_head_chef(*, event_spec: EventSpecification, session_id: str) -> A
         ]
 
         safe_count = len(safe_recipes)
-        rationale = "Menu selected from the recipe knowledge base while excluding dishes that match the event allergy list."
+
+        menu_items, gpt_rationale = await _build_menu_items(
+            event_spec=event_spec,
+            recipes=recipes,
+            safe_recipes=safe_recipes,
+            blocked_allergens=blocked_allergens,
+            dietary_restrictions=event_spec.dietary_restrictions,
+            guest_count=event_spec.guest_count,
+        )
+
+        rationale = gpt_rationale or "Menu selected from the recipe knowledge base while excluding dishes that match the event allergy list."
+
+        if (
+            len(menu_items) < 5
+            and (event_spec.dietary_restrictions or event_spec.allergies)
+        ):
+            rationale = (rationale or "") + " Note: Selection is limited by dietary and allergen constraints."
 
         if safe_count < 3:
             log_event(
@@ -1058,15 +1078,6 @@ async def run_head_chef(*, event_spec: EventSpecification, session_id: str) -> A
                 + f"(cuisines={event_spec.cuisine_preferences}, dietary={event_spec.dietary_restrictions}, "
                 + f"allergies={event_spec.allergies})."
             )
-
-        menu_items = await _build_menu_items(
-            event_spec=event_spec,
-            recipes=recipes,
-            safe_recipes=safe_recipes,
-            blocked_allergens=blocked_allergens,
-            dietary_restrictions=event_spec.dietary_restrictions,
-            guest_count=event_spec.guest_count,
-        )
 
         plan = MenuPlan(
             event_id=event_spec.event_id,

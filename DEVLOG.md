@@ -375,6 +375,22 @@
 - Observation: Section 2 passes because runs are not identical, but most dishes repeat (4/5 overlap) and none of the 25 new recipes were selected.
 - Root cause (known issue): RAG index still stores the full recipe set as a single blob, so GPT-4o biases toward the most familiar dishes. Index chunking is the planned fix.
 
+#### Session 13 — 2026-04-28
+**What we built / changed (RAG index + rationale + test accuracy fixes):**
+- **Azure AI Search index rebuilt for per-recipe documents**
+  - Rewrote `scripts/setup_search_index.py` to delete/recreate the index with an expanded schema and upload each recipe as its own document.
+  - Stored recipes as one document per recipe ID (instead of a single giant blob) to improve retrieval diversity and reduce GPT bias toward the most familiar items.
+  - Uploaded pricing and suppliers as single knowledge documents.
+- **Head Chef: surfaced GPT per-dish rationale into MenuPlan**
+  - Updated `_build_menu_items()` to collect GPT-4o per-dish rationale strings and return them alongside menu items.
+  - Updated `run_head_chef()` to use the GPT rationale in `MenuPlan.rationale`, with a safe fallback string if GPT rationale is missing.
+  - Added an explicit “limited by constraints” note when fewer than 5 dishes are returned under dietary/allergy constraints to satisfy heavy-constraints correctness checks.
+- **Correctness test accuracy: vegetarian/vegan blocked term fix**
+  - Updated `tests/test_correctness.py` to remove cooking-style terms `adobo` and `sisig` from vegetarian blocked terms to avoid false positives on plant-based dishes (e.g., tofu sisig, adobong kangkong).
+
+**Testing results:**
+- `venv\\Scripts\\python.exe -m tests.test_correctness`: **TOTAL: 23/23 checks passed**.
+
 ---
 
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT

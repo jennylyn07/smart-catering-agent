@@ -8,10 +8,12 @@ WARNING: Running this script will make network calls to Azure AI Search and may 
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, List
 
 from azure.core.credentials import AzureKeyCredential
+from azure.core.exceptions import ResourceNotFoundError
 from azure.search.documents import SearchClient
 from azure.search.documents.indexes import SearchIndexClient
 from azure.search.documents.indexes.models import (
@@ -19,6 +21,8 @@ from azure.search.documents.indexes.models import (
     SearchableField,
     SimpleField,
 )
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from utils.azure_client import get_settings
 
@@ -35,38 +39,37 @@ def _load_json(path: Path) -> Any:
         return json.load(f)
 
 
-def _iter_documents(*, source_file: Path, category: str, payload: Any) -> Iterable[Dict[str, Any]]:
-    if isinstance(payload, list):
-        items = payload
-    else:
-        items = [payload]
-
-    for i, item in enumerate(items):
-        if isinstance(item, (dict, list)):
-            content = json.dumps(item, ensure_ascii=False)
-        else:
-            content = str(item)
-
-        yield {
-            "id": f"{category}_{source_file.stem}_{i}",
-            "content": content,
-            "category": category,
-            "source_file": source_file.name,
-        }
-
-
 def _ensure_index(index_client: SearchIndexClient) -> None:
     fields = [
         SimpleField(name="id", type="Edm.String", key=True, filterable=True, sortable=True),
-        SearchableField(name="content", type="Edm.String"),
+        SearchableField(name="content"),
         SimpleField(name="category", type="Edm.String", filterable=True, facetable=True, sortable=True),
-        SimpleField(name="source_file", type="Edm.String", filterable=True, facetable=True, sortable=True),
+        SearchableField(name="name"),
+        SearchableField(name="cuisine", filterable=True, facetable=True, sortable=True),
+        SearchableField(name="dish_category", filterable=True, facetable=True, sortable=True),
+        SearchableField(
+            name="dietary_tags",
+            collection=True,
+            searchable=True,
+            filterable=True,
+            facetable=True,
+        ),
+        SimpleField(
+            name="allergens",
+            type="Collection(Edm.String)",
+            filterable=True,
+            facetable=True,
+        ),
     ]
 
     index = SearchIndex(name=INDEX_NAME, fields=fields)
 
-    # Create or update so repeated runs are safe.
-    index_client.create_or_update_index(index)
+    try:
+        index_client.delete_index(INDEX_NAME)
+    except ResourceNotFoundError:
+        pass
+
+    index_client.create_index(index)
 
 
 def _upload_documents(search_client: SearchClient, documents: List[Dict[str, Any]]) -> None:
@@ -101,18 +104,74 @@ def main() -> None:
     root = _project_root()
     kb_dir = root / "knowledge_base"
 
-    sources = [
-        (kb_dir / "recipes.json", "recipes"),
-        (kb_dir / "pricing.json", "pricing"),
-        (kb_dir / "suppliers.json", "suppliers"),
-    ]
+    recipes_path = kb_dir / "recipes.json"
+    pricing_path = kb_dir / "pricing.json"
+    suppliers_path = kb_dir / "suppliers.json"
 
-    all_docs: List[Dict[str, Any]] = []
-    for path, category in sources:
-        payload = _load_json(path)
-        all_docs.extend(list(_iter_documents(source_file=path, category=category, payload=payload)))
+    recipes_payload = _load_json(recipes_path)
+    recipes = recipes_payload.get("recipes") if isinstance(recipes_payload, dict) else None
+    if not isinstance(recipes, list):
+        raise ValueError("recipes.json missing 'recipes' list")
 
-    _upload_documents(search_client, all_docs)
+    recipe_docs: List[Dict[str, Any]] = []
+    for recipe in recipes:
+        if not isinstance(recipe, dict):
+            continue
+        rid = str(recipe.get("id") or "").strip()
+        if not rid:
+            continue
+
+        name = str(recipe.get("name") or "").strip()
+        print(f"Uploading recipe [{rid}] {name}")
+
+        dietary_flags = recipe.get("dietary_flags")
+        dietary_tags: list[str] = []
+        if isinstance(dietary_flags, dict):
+            dietary_tags = [str(k) for k, v in dietary_flags.items() if bool(v)]
+        elif isinstance(dietary_flags, list):
+            dietary_tags = [str(x) for x in dietary_flags if str(x).strip()]
+
+        allergens = recipe.get("allergens")
+        allergens_list: list[str] = []
+        if isinstance(allergens, list):
+            allergens_list = [str(a) for a in allergens if str(a).strip()]
+
+        recipe_docs.append(
+            {
+                "id": rid,
+                "category": "recipes",
+                "name": name,
+                "cuisine": str(recipe.get("cuisine") or "").strip(),
+                "dish_category": str(recipe.get("category") or "").strip(),
+                "dietary_tags": dietary_tags,
+                "allergens": allergens_list,
+                "content": json.dumps(recipe, ensure_ascii=False),
+            }
+        )
+
+    knowledge_docs: List[Dict[str, Any]] = []
+
+    pricing_payload = _load_json(pricing_path)
+    knowledge_docs.append(
+        {
+            "id": "pricing_main",
+            "category": "pricing",
+            "content": json.dumps(pricing_payload, ensure_ascii=False),
+        }
+    )
+
+    suppliers_payload = _load_json(suppliers_path)
+    knowledge_docs.append(
+        {
+            "id": "suppliers_main",
+            "category": "suppliers",
+            "content": json.dumps(suppliers_payload, ensure_ascii=False),
+        }
+    )
+
+    _upload_documents(search_client, recipe_docs + knowledge_docs)
+
+    print(f"Done. {len(recipe_docs)} recipe documents + 2 knowledge documents uploaded.")
 
     count = search_client.get_document_count()
     print(f"Index '{INDEX_NAME}' document count: {count}")

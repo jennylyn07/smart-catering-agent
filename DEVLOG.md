@@ -441,7 +441,32 @@
 **Git commits made:**
 - `13e5fb7` — Concierge soft/hard restriction distinction, date year default, Head Chef notes vs restrictions fix
 
-#### Session 18 — 2026-04-30 (P4)
+#### Session 18 — 2026-04-30 (P3)
+**What we built / changed (Accountant GPT flagging fix):**
+- `agents/accountant.py`: Added `_gpt_flagged_analysis()` async function to replace slash-and-burn top-2 flagging.
+- Architecture principle enforced: math computed in code first, GPT reasons over pre-computed facts only.
+- Code pre-computes before GPT call: `gap_pct`, `dish_with_pct` (each dish as % of total cost), `top_driver`, `single_item_dominant` (True if one dish drives >50% of gap).
+- GPT receives pre-computed analysis as facts and is told explicitly "do not recalculate".
+- GPT reasoning priority order: Protein Down-Tiering → Portion Re-balancing → Service Style note → flag as last resort only. Never flags hard dietary dishes. Minimum flagging. Event context aware.
+- Returns `{"flagged_dishes": [...], "reformulation_notes": "..."}` — only `flagged_dishes` used for pipeline.
+- Validation: flagged names must match actual dish names from `dish_costs`.
+- Graceful degradation: falls back to original top-2 on any failure.
+- Note caught before implementing: `EventSpecification` fields are `event_name` and `cuisine_preferences` — NOT `event_type` and `cuisine_type`.
+
+**What broke and how we fixed it:**
+- Original P3 was committed as two separate commits (DEVLOG alone + code alone), violating the bundle rule.
+- Fixed via `git reset --soft` + recommit. Both `DEVLOG.md` and `agents/accountant.py` are now in the same commit.
+
+**Azure resources used this session:**
+- Azure OpenAI (GPT-4o) — `_gpt_flagged_analysis()` called when over budget.
+
+**Testing results:**
+- `venv\Scripts\python.exe -m tests.test_correctness`: **TOTAL: 23/23 checks passed**.
+
+**Git commits made:**
+- `131a6a9` — Accountant — GPT flagging with pre-computed variance analysis, graceful degradation to top-2
+
+#### Session 19 — 2026-04-30 (P4)
 **What we built / changed (Accountant cost buffer + GPT rationale):**
 - `agents/accountant.py`: Added a 7% cost buffer on top of ingredient costs (industry-standard 5–10% buffer) and included it in `total_cost`.
 - `agents/accountant.py`: Replaced the static `CostReport.notes` string with GPT-generated cost rationale via `_gpt_cost_rationale()` (event-aware, grounded in the computed numbers) with a clear static fallback on any failure.
@@ -451,7 +476,42 @@
 - `venv\Scripts\python.exe -m tests.test_correctness`: **TOTAL: 23/23 checks passed**.
 
 **Git commits made:**
-- `6e07ffd` — P4 Accountant — 7% cost buffer, GPT cost rationale replaces static notes, AI reasoning in log
+- `2687519` — P4 Accountant — 7% cost buffer, GPT cost rationale replaces static notes, AI reasoning in log
+
+#### Session 20 — 2026-04-30 (Scenario B fix — Concierge location fallback)
+**What we built / changed:**
+- `agents/concierge.py`: Added prompt instruction to `_system_prompt()` — if customer does not
+  specify a venue or location, use "Venue TBC" as default. Never return None or null for location.
+- `agents/concierge.py`: Added deterministic code fallback in `_coerce_event_spec()` immediately
+  before `EventSpecification.model_validate(payload)`:
+  `if not payload.get("location"): payload["location"] = "Venue TBC"` 
+- Architecture note: prompt instruction reduces how often the fallback fires; code fallback
+  guarantees it never fails. Same pattern as event_id UUID enforcement.
+
+**Why the prompt-only fix was insufficient:**
+- GPT cannot guarantee non-null output even with explicit instructions. Hard constraints must
+  live in code. This is consistent with the locked architecture principle.
+
+**Also fixed in DEVLOG this session (documentation only):**
+- Added missing P3 session entry (commit `131a6a9`) between Session 17 and Session 19.
+- Corrected P4 commit hash from `6e07ffd` to `2687519` in Session 19.
+
+**Verification — Scenario B (original input, no location added):**
+- `location` in event spec: "Venue TBC" ✅
+- `cost_report.total_cost_php`: 53,999.18
+- `cost_report.within_budget`: false
+- `cost_report.flagged_items`: ["Beef Kaldereta"] — GPT-reasoned, not slash-and-burn ✅
+- `cost_report.notes`: event-specific GPT rationale mentioning Beef Kaldereta as cost driver ✅
+- Negotiation rounds used: 3 ✅
+
+**Azure resources used this session:**
+- Azure OpenAI (GPT-4o) — Concierge parsing + Accountant flagging + cost rationale calls.
+
+**Testing results:**
+- `venv\Scripts\python.exe -m tests.test_correctness`: **TOTAL: 23/23 checks passed**.
+
+**Git commits made:**
+- `[hash]` — Concierge location fallback — prompt + code default to Venue TBC, DEVLOG P3 entry + P4 hash fix
 
 ---
 

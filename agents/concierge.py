@@ -100,6 +100,10 @@ def _coerce_event_spec(data: dict[str, Any]) -> EventSpecification:
     payload["cuisine_preferences"] = cuisine_preferences
     payload["dietary_restrictions"] = dietary_restrictions
     payload["allergies"] = allergies
+
+    if not payload.get("location"):
+        payload["location"] = "Venue TBC"
+
     return EventSpecification.model_validate(payload)
 
 
@@ -186,6 +190,8 @@ def _system_prompt() -> str:
 
         "REQUIRED FIELDS:\n"
         "5) Required: event_id (generate a UUID), event_date (YYYY-MM-DD), location, guest_count.\n"
+        "   If the customer does not specify a venue or location, use 'Venue TBC' as the default value "
+        "for the location field. Never return None or null for location under any circumstances.\n"
         "6) Optional: event_name, budget_php, cuisine_preferences, dietary_restrictions, allergies, notes.\n"
         "7) cuisine_preferences, dietary_restrictions, allergies must be arrays of strings.\n\n"
 

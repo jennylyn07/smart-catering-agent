@@ -140,9 +140,16 @@ async def _run_full_pipeline(*, event_spec: EventSpecification) -> AgentMessage:
     return await run_orchestration(raw_customer_request=raw)
 
 
-def _backend_running(*, url: str = "http://localhost:8000/health") -> bool:
+def _backend_base_url() -> str:
+    return (os.getenv("BACKEND_BASE_URL") or "http://localhost:8001").rstrip("/")
+
+
+def _backend_running(*, url: str | None = None) -> bool:
     try:
         import urllib.request
+
+        if url is None:
+            url = f"{_backend_base_url()}/health"
 
         with urllib.request.urlopen(url, timeout=2) as resp:  # noqa: S310
             return 200 <= int(resp.status) < 300
@@ -690,7 +697,7 @@ async def _section_4_bonus(report: ReportWriter) -> list[CheckResult]:
                         "new_value": 100,
                     }
                     status_code, body = _http_post_json(
-                        url="http://localhost:8000/api/v1/catering/adapt",
+                        url=f"{_backend_base_url()}/api/v1/catering/adapt",
                         api_key=api_key,
                         payload=payload,
                     )
@@ -765,7 +772,7 @@ async def _section_4_bonus(report: ReportWriter) -> list[CheckResult]:
                 "acknowledge_azure_openai": True,
             }
             status_code, body = _http_post_json(
-                url="http://localhost:8000/api/v1/catering/multi-order",
+                url=f"{_backend_base_url()}/api/v1/catering/multi-order",
                 api_key=api_key,
                 payload=payload,
             )

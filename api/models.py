@@ -51,6 +51,14 @@ class CateringOrderRequest(BaseModel):
     notes: Optional[str] = None
 
 
+class CateringRawTextOrderRequest(BaseModel):
+    """Incoming request body for creating a catering order from raw text."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    raw_customer_text: str = Field(..., min_length=1)
+
+
 class CateringAdaptRequest(BaseModel):
     """Incoming request body for adapting an existing catering order."""
 

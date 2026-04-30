@@ -8,6 +8,7 @@ __pycache__/
 frontend/node_modules/
 frontend/build/
 frontend/.env
+frontend/package-lock.json
 
 # Generated local artifacts
 audit*_*.txt

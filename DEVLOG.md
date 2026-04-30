@@ -407,6 +407,22 @@
 **Testing results:**
 - `venv\\Scripts\\python.exe -m tests.test_correctness`: **TOTAL: 23/23 checks passed** (Section 3 Notes: **3/3**).
 
+#### Session 15 — 2026-04-29
+**What we built / changed:**
+- `agents/concierge.py`: Prompt enriched with (1) proactive dietary checklist — only standard flags allowed in dietary_restrictions array, qualitative preferences like "light food" go in notes only; (2) service style captured at intake into notes field; (3) expected vs guaranteed vs set guest count distinction captured in notes; (4) security rules preserved verbatim.
+- Verified: Test Request B (elderly birthday party) now returns dietary_restrictions: [] with diabetes/elderly concern in notes only. light_food bug confirmed fixed.
+- `api/models.py` + `api/routes.py`: POST /api/v1/catering/order now accepts {"raw_customer_text": "..."} as single field. Previously used structured CateringOrderRequest that manufactured a raw string, bypassing Concierge. Fix ensures Concierge actually receives and parses raw customer text.
+- Architecture principle refined: "Hard constraints live in code, always. Soft judgments belong to GPT. Math belongs to code. Every GPT call degrades gracefully. Tests stay 23/23." Replaces older broader framing.
+
+#### Session 16 — 2026-04-29 (P2)
+**What we built / changed:**
+- `agents/accountant.py`: Added _load_candidate_pricing() async function. Queries Azure AI Search index catering-knowledge-base with filter="category eq 'pricing'". Normalizes result to list[dict] matching _load_pricing() shape (ingredient, unit, price_php). Falls back to _load_pricing() on any failure. Fixed async search pattern to use async with search_client + async for doc in results (mirroring Head Chef). Fixed create_search_client() call to include index_name argument.
+- `api/routes.py`: Added _to_raw_customer_request() helper to fix 500 error on POST /api/v1/catering/multi-order endpoint.
+- `tests/test_correctness.py`: Backend base URL now configurable via BACKEND_URL env var, defaulting to http://localhost:8001. Fixes TEST 4C and TEST 4D which were hardcoded to port 8000.
+- Quality test run: 120-guest anniversary dinner, PHP 55,000, BGC hotel ballroom, plated service, halal + vegetarian preferences. Plan produced in 16.2s. Within budget (PHP 45,845 / PHP 55,000). 0 negotiation rounds.
+- Known issues noted for upcoming prompts: (1) Concierge over-restricts "some guests need halal" as hard dietary flag — needs prompt fix to distinguish partial vs full event restrictions. (2) Logistics staffing note lacks specific numbers — P7 will fix. (3) cost_report.notes and waste_minimization_notes are static — P4/P6 will fix. (4) customer_summary has UTF-8 encoding artifact (Â·) — minor, note for cleanup.
+- Verified: 23/23 correctness suite passing after all changes.
+
 ---
 
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT

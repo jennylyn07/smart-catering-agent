@@ -22,6 +22,12 @@ from utils.json_schema import (
     MessageMetadata,
     MessageSignature,
 )
+from utils.azure_client import (
+    create_async_azure_openai_client,
+    get_azure_openai_deployment_name,
+    create_search_client,
+    try_load_settings,
+)
 from utils.logger import log_event
 
 AGENT_ID = "accountant"
@@ -244,6 +250,53 @@ def _suggest_alternative(
     )
 
 
+async def _load_candidate_pricing() -> list[dict[str, Any]]:
+    """Load ingredient pricing via Azure AI Search RAG. Falls back to local _load_pricing() on any failure."""
+    try:
+        settings = try_load_settings()
+        if not settings:
+            return _load_pricing()
+        search_client = create_search_client(index_name="catering-knowledge-base")
+        async with search_client:
+            results = await search_client.search(
+                search_text="*",
+                filter="category eq 'pricing'",
+                select=["content"],
+                top=5,
+            )
+            combined_content = ""
+            async for doc in results:
+                combined_content += doc.get("content", "") + "\n"
+        if not combined_content.strip():
+            return _load_pricing()
+        # Parse pricing from content — extract JSON block if present
+        import re, json as _json
+        match = re.search(r'\{[\s\S]+\}', combined_content)
+        if not match:
+            return _load_pricing()
+        pricing_data = _json.loads(match.group())
+
+        # Normalize to list[dict] matching _load_pricing() shape: {ingredient, unit, price_php}
+        if "ingredient_prices_php_per_kg" in pricing_data:
+            return [
+                {"ingredient": k, "unit": "kg", "price_php": v}
+                for k, v in pricing_data["ingredient_prices_php_per_kg"].items()
+            ]
+        if "items" in pricing_data and isinstance(pricing_data["items"], list):
+            return pricing_data["items"]
+        # If it's already a flat dict of name->price
+        if all(isinstance(v, (int, float)) for v in pricing_data.values()):
+            return [
+                {"ingredient": k, "unit": "kg", "price_php": v}
+                for k, v in pricing_data.items()
+            ]
+        return _load_pricing()
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Accountant RAG pricing fallback: {e}")
+        return _load_pricing()
+
+
 async def run_accountant(
     *,
     menu_plan_message: AgentMessage,
@@ -275,7 +328,7 @@ async def run_accountant(
             raise ValueError("menu_plan_message payload must be a MenuPlan")
 
         menu_plan: MenuPlan = menu_plan_message.payload
-        pricing_items = _load_pricing()
+        pricing_items = await _load_candidate_pricing()
         recipes = _load_recipes()
         pricing_map = _pricing_lookup(pricing_items)
 

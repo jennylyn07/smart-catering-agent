@@ -256,6 +256,99 @@ Try reformulation before removal. Return only the JSON object."""
         return [d.dish_name for d in by_dish_cost[:2]]
 
 
+async def _gpt_cost_rationale(
+    dish_costs: list,
+    ingredients_cost: float,
+    cost_buffer: float,
+    labor_cost: float,
+    fixed_overhead: float,
+    total_cost: float,
+    budget: Optional[float],
+    is_within_budget: Optional[bool],
+    flagged_items: list[str],
+    event_spec: EventSpecification,
+) -> str:
+    """
+    GPT generates a specific, event-aware cost rationale for CostReport.notes.
+    Replaces the static hardcoded string with reasoning grounded in this event's numbers.
+    Falls back to a clear static summary on any failure.
+    """
+    static_fallback = (
+        f"Cost breakdown: ingredients PHP {ingredients_cost:.2f} + "
+        f"7% buffer PHP {cost_buffer:.2f} + "
+        f"labor PHP {labor_cost:.2f} (PHP 150/guest x {event_spec.guest_count} guests) + "
+        f"fixed overhead PHP {fixed_overhead:.2f} (setup, equipment, delivery). "
+        f"Total: PHP {total_cost:.2f}."
+    )
+
+    if is_within_budget is True or budget is None:
+        return static_fallback
+
+    try:
+        client = create_async_azure_openai_client()
+        deployment = get_azure_openai_deployment_name()
+
+        cuisine = ", ".join(event_spec.cuisine_preferences or []) if event_spec.cuisine_preferences else "(none specified)"
+        event_name = event_spec.event_name or "(not specified)"
+        budget_status = (
+            f"WITHIN BUDGET — PHP {total_cost:.2f} of PHP {budget:.2f}"
+            if is_within_budget
+            else f"OVER BUDGET — PHP {total_cost:.2f} vs PHP {budget:.2f} budget"
+        )
+
+        flagged_note = (
+            f"Flagged for revision: {', '.join(flagged_items)}"
+            if flagged_items
+            else "No dishes flagged — plan is within budget."
+        )
+
+        system_prompt = """You are a professional catering cost controller writing a concise cost summary note for a catering plan.
+
+Write 2-3 sentences that explain the cost breakdown for this specific event.
+Be specific to this event — mention the event type, guest count, and what is driving the cost.
+If over budget, explain what the flagged items are and why they drive cost for this event type.
+If within budget, note what made this plan cost-efficient.
+Always mention the 7% cost buffer as industry standard protection against price volatility.
+
+Write in plain professional English. No bullet points. No headers. No markdown."""
+
+        user_prompt = f"""Event: {event_name}
+Guests: {event_spec.guest_count}
+Cuisine: {cuisine}
+Budget status: {budget_status}
+{flagged_note}
+
+Cost components:
+- Ingredients: PHP {ingredients_cost:.2f}
+- 7% cost buffer: PHP {cost_buffer:.2f}
+- Labor (PHP 150/guest): PHP {labor_cost:.2f}
+- Fixed overhead: PHP {fixed_overhead:.2f}
+- Total: PHP {total_cost:.2f}
+
+Write the cost summary note for this specific event."""
+
+        response = await client.chat.completions.create(
+            model=deployment,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.0,
+            max_tokens=200,
+        )
+
+        result = response.choices[0].message.content.strip()
+        if not result:
+            return static_fallback
+        return result
+
+    except Exception as e:
+        import logging
+
+        logging.warning(f"GPT cost rationale failed, using static fallback: {e}")
+        return static_fallback
+
+
 def _pricing_lookup(items: list[dict[str, Any]]) -> dict[tuple[str, str], float]:
     """Build a lookup table mapping (ingredient, unit) to unit price.
 
@@ -484,7 +577,8 @@ async def run_accountant(
 
         fixed_overhead = 2500.0 + 1500.0 + 800.0
         labor_cost = 150.0 * float(event_spec.guest_count)
-        total_cost = ingredients_cost + labor_cost + fixed_overhead
+        cost_buffer = round(ingredients_cost * 0.07, 2)  # Industry standard 5-10% buffer
+        total_cost = ingredients_cost + cost_buffer + labor_cost + fixed_overhead
         budget = event_spec.budget_php
 
         is_within_budget: Optional[bool]
@@ -543,9 +637,17 @@ async def run_accountant(
             flagged_items=flagged_items,
             recommended_alternatives=recommended,
             line_items=line_items,
-            notes=(
-                "Includes fixed overhead (setup_fee=2500, equipment_rental=1500, delivery=800) "
-                "and labor cost (150 per guest) on top of ingredient costs."
+            notes=await _gpt_cost_rationale(
+                dish_costs=dish_costs,
+                ingredients_cost=ingredients_cost,
+                cost_buffer=cost_buffer,
+                labor_cost=labor_cost,
+                fixed_overhead=fixed_overhead,
+                total_cost=total_cost,
+                budget=budget,
+                is_within_budget=is_within_budget,
+                flagged_items=flagged_items,
+                event_spec=event_spec,
             ),
         )
 
@@ -566,6 +668,8 @@ async def run_accountant(
                 "budget_php": report.budget_php,
                 "is_within_budget": report.is_within_budget,
                 "over_budget_by_php": report.over_budget_by_php,
+                "cost_buffer_php": cost_buffer,
+                "accountant_ai_reasoning": report.notes,
             },
         )
 

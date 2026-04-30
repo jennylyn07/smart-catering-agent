@@ -441,6 +441,18 @@
 **Git commits made:**
 - `13e5fb7` — Concierge soft/hard restriction distinction, date year default, Head Chef notes vs restrictions fix
 
+#### Session 18 — 2026-04-30 (P4)
+**What we built / changed (Accountant cost buffer + GPT rationale):**
+- `agents/accountant.py`: Added a 7% cost buffer on top of ingredient costs (industry-standard 5–10% buffer) and included it in `total_cost`.
+- `agents/accountant.py`: Replaced the static `CostReport.notes` string with GPT-generated cost rationale via `_gpt_cost_rationale()` (event-aware, grounded in the computed numbers) with a clear static fallback on any failure.
+- `agents/accountant.py`: Added `cost_buffer_php` and `accountant_ai_reasoning` to the Accountant success log for traceability.
+
+**Testing results:**
+- `venv\Scripts\python.exe -m tests.test_correctness`: **TOTAL: 23/23 checks passed**.
+
+**Git commits made:**
+- `6e07ffd` — P4 Accountant — 7% cost buffer, GPT cost rationale replaces static notes, AI reasoning in log
+
 ---
 
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT

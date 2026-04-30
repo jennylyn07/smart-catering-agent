@@ -423,6 +423,24 @@
 - Known issues noted for upcoming prompts: (1) Concierge over-restricts "some guests need halal" as hard dietary flag — needs prompt fix to distinguish partial vs full event restrictions. (2) Logistics staffing note lacks specific numbers — P7 will fix. (3) cost_report.notes and waste_minimization_notes are static — P4/P6 will fix. (4) customer_summary has UTF-8 encoding artifact (Â·) — minor, note for cleanup.
 - Verified: 23/23 correctness suite passing after all changes.
 
+#### Session 17 — 2026-04-30
+**What we built / changed (prompt-only fixes + verification):**
+- `agents/concierge.py`: Added an explicit **SOFT vs. HARD restriction** rule to prevent partial-guest needs (e.g., "a few Muslim employees", "2-3 vegetarian-friendly dishes") from being promoted into `dietary_restrictions`. Added a **date parsing** rule to default missing-year dates to the nearest upcoming occurrence.
+- `agents/head_chef.py`: Updated the GPT system prompt with a **HARD constraints vs. SOFT preferences** rule: `dietary_restrictions` applies to the entire menu; `notes` is guidance to include options (not restrict the full menu).
+
+**Verification (manual quality check request):**
+- Confirmed `dietary_restrictions: []`.
+- Confirmed notes capture soft preferences (halal options for some guests, 2-3 vegetarian dishes, avoid overly spicy).
+- Confirmed menu includes both:
+  - Meat/poultry dishes (e.g., Chicken Inasal, Chicken Kebabs)
+  - Multiple vegetarian dishes (e.g., Pinakbet, Steamed Vegetables, Garden Fresh Salad)
+
+**Testing results:**
+- `venv\Scripts\python.exe -m tests.test_correctness`: **TOTAL: 23/23 checks passed**.
+
+**Git commits made:**
+- `13e5fb7` — Concierge soft/hard restriction distinction, date year default, Head Chef notes vs restrictions fix
+
 ---
 
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT

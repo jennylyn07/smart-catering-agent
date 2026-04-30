@@ -150,6 +150,112 @@ def _load_recipes() -> list[dict[str, Any]]:
     return recipes
 
 
+async def _gpt_flagged_analysis(
+    dish_with_pct: list[dict],
+    gap: float,
+    gap_pct: float,
+    top_driver_name: str,
+    single_item_dominant: bool,
+    total_cost: float,
+    budget: float,
+    event_spec: EventSpecification,
+    dish_costs: list,
+) -> list[str]:
+    """
+    GPT receives pre-computed cost analysis and reasons about which dishes
+    to flag for revision. Math is done in code before this call.
+    GPT judges: reformulate before remove, minimum flagging, event context.
+    Falls back to top-2 rule on any failure.
+    """
+    try:
+        client = create_async_azure_openai_client()
+        deployment = get_azure_openai_deployment_name()
+
+        overage_pattern = (
+            f"{top_driver_name} is driving more than 50% of the gap (single item dominant)"
+            if single_item_dominant
+            else "overage is spread across multiple dishes (no single dominant driver)"
+        )
+
+        dish_lines = "\n".join(
+            f"- {d['name']}: PHP {d['cost_php']} ({d['pct_of_total']}% of total cost)"
+            for d in dish_with_pct
+        )
+
+        system_prompt = """You are a professional catering cost controller with deep expertise in food cost management and menu engineering.
+
+You will receive a pre-computed cost analysis. Do not recalculate — the numbers are given to you as facts.
+Your job is to reason: given this cost profile and this specific event context, which dishes should be flagged for revision?
+
+Before flagging any dish, always consider reformulation first in this order:
+1. Protein Down-Tiering — can the expensive protein be swapped for a high-flavor lower-cost alternative?
+2. Portion Re-balancing — can the protein portion be reduced by 1oz while increasing a low-cost sophisticated starch?
+3. Service Style — if the gap is large, note whether a buffet style could reduce labor cost (note only, do not flag a dish for this)
+4. Only if reformulation cannot close the gap — flag the dish for replacement
+
+Rules:
+- Flag the MINIMUM number of dishes necessary to close the gap
+- Never flag a dish that directly serves a hard dietary restriction for this event
+- Anchor dishes (high-popularity proteins, cultural centerpieces for this event type) should be reformulated not removed
+- Consider the event type and guest profile when judging dish importance
+
+Respond with a JSON object only. No explanation, no markdown, no preamble.
+Format: {"flagged_dishes": ["dish name 1"], "reformulation_notes": "brief reasoning"}"""
+
+        cuisine = ", ".join(event_spec.cuisine_preferences or []) if event_spec.cuisine_preferences else "(none specified)"
+        event_name = event_spec.event_name or "(not specified)"
+
+        user_prompt = f"""EVENT CONTEXT:
+Event name / type: {event_name}
+Guests: {event_spec.guest_count}
+Cuisine preferences: {cuisine}
+Hard dietary restrictions: {event_spec.dietary_restrictions}
+
+PRE-COMPUTED COST ANALYSIS (do not recalculate — trust these numbers):
+Budget: PHP {budget:.2f}
+Total cost: PHP {total_cost:.2f}
+Over budget by: PHP {gap:.2f} ({gap_pct}% over budget)
+Overage pattern: {overage_pattern}
+
+DISH COST BREAKDOWN:
+{dish_lines}
+
+Based on this analysis and the event context, which dishes should be flagged for revision?
+Try reformulation before removal. Return only the JSON object."""
+
+        response = await client.chat.completions.create(
+            model=deployment,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.0,
+            max_tokens=300,
+        )
+
+        raw = response.choices[0].message.content.strip()
+        raw = raw.replace("```json", "").replace("```", "").strip()
+        parsed = json.loads(raw)
+        flagged = parsed.get("flagged_dishes", [])
+
+        # Validate — flagged names must match actual dish names
+        valid_names = {d.dish_name for d in dish_costs}
+        flagged = [name for name in flagged if name in valid_names]
+
+        # Safety: if GPT returns empty list while over budget, fall back
+        if not flagged:
+            raise ValueError("GPT returned empty flagged list while over budget")
+
+        return flagged
+
+    except Exception as e:
+        import logging
+
+        logging.warning(f"GPT flagged analysis failed, falling back to top-2: {e}")
+        by_dish_cost = sorted(dish_costs, key=lambda d: d.cost_php, reverse=True)
+        return [d.dish_name for d in by_dish_cost[:2]]
+
+
 def _pricing_lookup(items: list[dict[str, Any]]) -> dict[tuple[str, str], float]:
     """Build a lookup table mapping (ingredient, unit) to unit price.
 
@@ -393,9 +499,30 @@ async def run_accountant(
         recommended: list[AlternativeRecommendation] = []
 
         if is_within_budget is False:
-            # Flag expensive dishes (so Head Chef can remove them by name during negotiation).
-            by_dish_cost = sorted(dish_costs, key=lambda d: d.cost_php, reverse=True)
-            flagged_items = [d.dish_name for d in by_dish_cost[:2]]
+            # Math in code — pre-compute analysis before GPT call
+            gap_pct = round((over_budget_by / budget) * 100, 1)
+            dish_with_pct = [
+                {
+                    "name": d.dish_name,
+                    "cost_php": round(d.cost_php, 2),
+                    "pct_of_total": round(d.cost_php / total_cost * 100, 1),
+                }
+                for d in dish_costs
+            ]
+            top_driver = max(dish_costs, key=lambda d: d.cost_php)
+            single_item_dominant = (top_driver.cost_php / over_budget_by) > 0.5 if over_budget_by > 0 else False
+
+            flagged_items = await _gpt_flagged_analysis(
+                dish_with_pct=dish_with_pct,
+                gap=over_budget_by,
+                gap_pct=gap_pct,
+                top_driver_name=top_driver.dish_name,
+                single_item_dominant=single_item_dominant,
+                total_cost=total_cost,
+                budget=budget,
+                event_spec=event_spec,
+                dish_costs=dish_costs,
+            )
 
             # Keep ingredient-level alternative hints to support future improvements.
             by_subtotal = sorted(line_items, key=lambda li: li.subtotal_php, reverse=True)

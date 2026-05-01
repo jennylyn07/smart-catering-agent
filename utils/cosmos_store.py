@@ -8,8 +8,9 @@ item operations are executed.
 
 from __future__ import annotations
 
+import asyncio
 import os
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from utils.logger import log_event
 
@@ -134,3 +135,118 @@ async def append_adaptation_event(
         status="success",
         details={"order_id": order_id, "event_count": len(events)},
     )
+
+
+def format_past_orders_context(past_orders: list) -> str:
+    """Format past orders list into a readable context string for agent prompts."""
+    if not past_orders:
+        return ""
+    lines = ["Past events with similar profile:"]
+    for o in past_orders:
+        dishes = ", ".join(o.get("menu_item_names") or [])
+        lines.append(
+            f"- {o.get('event_date')} | {o.get('guest_count')} guests | "
+            f"{o.get('cuisine')} | PHP {o.get('total_cost_php')} total "
+            f"(PHP {o.get('per_head_cost')} per head) | Dishes: {dishes}"
+        )
+    return "\n".join(lines)
+
+
+async def query_past_orders(
+    *,
+    cuisine_preferences: list,
+    guest_count: int,
+) -> list:
+    """Query Cosmos for past orders matching cuisine or similar guest count.
+
+    Returns up to 3 lightweight past event dicts.
+    Gracefully returns empty list on any failure.
+
+    WARNING: This function makes a network call to Azure Cosmos DB.
+    """
+    try:
+        client = create_cosmos_client()
+        try:
+            async def _fetch() -> List[Dict[str, Any]]:
+                db = client.get_database_client(get_database_name())
+                container = db.get_container_client(get_container_name())
+                query = (
+                    "SELECT c.final_plan FROM c "
+                    "WHERE IS_DEFINED(c.final_plan) "
+                    "ORDER BY c._ts DESC "
+                    "OFFSET 0 LIMIT 20"
+                )
+
+                result: List[Dict[str, Any]] = []
+                async for item in container.query_items(
+                    query=query,
+                    enable_cross_partition_query=True,
+                ):
+                    if isinstance(item, dict):
+                        result.append(item)
+                return result
+
+            items = await asyncio.wait_for(_fetch(), timeout=5.0)
+        except (asyncio.TimeoutError, Exception):
+            return []
+        finally:
+            await client.close()
+
+        cuisines_lower = [str(c).lower() for c in (cuisine_preferences or [])]
+        guest_min = guest_count * 0.7
+        guest_max = guest_count * 1.3
+
+        matches: list[dict[str, Any]] = []
+        for item in items:
+            fp = item.get("final_plan") or {}
+            event_spec = fp.get("event_specification") or {}
+            cost_report = fp.get("cost_report") or {}
+            menu_plan = fp.get("menu_plan") or {}
+
+            past_guest_count = event_spec.get("guest_count") or 0
+            past_cuisines = [
+                str(c).lower() for c in (event_spec.get("cuisine_preferences") or [])
+            ]
+            past_total = cost_report.get("total_cost_php") or 0
+            past_date = event_spec.get("event_date") or "unknown date"
+            menu_items = menu_plan.get("menu_items") or []
+            dish_names: list[str] = []
+            for m in menu_items:
+                if isinstance(m, dict):
+                    name = m.get("name") or m.get("dish_name")
+                    if name:
+                        dish_names.append(str(name))
+
+            cuisine_match = any(c in cuisines_lower for c in past_cuisines)
+            guest_match = guest_min <= past_guest_count <= guest_max
+
+            if cuisine_match or guest_match:
+                per_head = (
+                    round(past_total / past_guest_count, 2)
+                    if past_guest_count
+                    else 0
+                )
+                matches.append(
+                    {
+                        "event_date": past_date,
+                        "guest_count": past_guest_count,
+                        "cuisine": ", ".join(past_cuisines) or "unspecified",
+                        "total_cost_php": past_total,
+                        "per_head_cost": per_head,
+                        "menu_item_names": dish_names[:8],
+                    }
+                )
+
+            if len(matches) >= 3:
+                break
+
+        return matches
+
+    except Exception as exc:  # noqa: BLE001
+        log_event(
+            agent_id="cosmos_store",
+            action="query_past_orders",
+            status="error",
+            details={"error": str(exc), "error_type": type(exc).__name__},
+        )
+        return []

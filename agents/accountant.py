@@ -29,6 +29,7 @@ from utils.azure_client import (
     try_load_settings,
 )
 from utils.logger import log_event
+from utils.cosmos_store import format_past_orders_context, query_past_orders
 
 AGENT_ID = "accountant"
 
@@ -160,6 +161,7 @@ async def _gpt_flagged_analysis(
     budget: float,
     event_spec: EventSpecification,
     dish_costs: list,
+    past_context: str = "",
 ) -> list[str]:
     """
     GPT receives pre-computed cost analysis and reasons about which dishes
@@ -223,6 +225,11 @@ DISH COST BREAKDOWN:
 Based on this analysis and the event context, which dishes should be flagged for revision?
 Try reformulation before removal. Return only the JSON object."""
 
+        if past_context:
+            user_prompt += (
+                f"\n\nHISTORICAL CONTEXT:\n{past_context}\nUse historical per-head costs as a reference benchmark when reasoning about cost drivers."
+            )
+
         response = await client.chat.completions.create(
             model=deployment,
             messages=[
@@ -267,6 +274,7 @@ async def _gpt_cost_rationale(
     is_within_budget: Optional[bool],
     flagged_items: list[str],
     event_spec: EventSpecification,
+    past_context: str = "",
 ) -> str:
     """
     GPT generates a specific, event-aware cost rationale for CostReport.notes.
@@ -326,6 +334,11 @@ Cost components:
 - Total: PHP {total_cost:.2f}
 
 Write the cost summary note for this specific event."""
+
+        if past_context:
+            user_prompt += (
+                f"\n\nHISTORICAL CONTEXT:\n{past_context}\nUse historical per-head costs as a reference benchmark when describing whether this plan is cost-efficient."
+            )
 
         response = await client.chat.completions.create(
             model=deployment,
@@ -501,6 +514,7 @@ async def run_accountant(
     menu_plan_message: AgentMessage,
     event_spec: EventSpecification,
     session_id: str,
+    past_context: str = "",
 ) -> AgentMessage:
     """Calculate a CostReport for a menu plan using local pricing and recipes data.
 
@@ -616,6 +630,7 @@ async def run_accountant(
                 budget=budget,
                 event_spec=event_spec,
                 dish_costs=dish_costs,
+                past_context=past_context,
             )
 
             # Keep ingredient-level alternative hints to support future improvements.
@@ -648,6 +663,7 @@ async def run_accountant(
                 is_within_budget=is_within_budget,
                 flagged_items=flagged_items,
                 event_spec=event_spec,
+                past_context=past_context,
             ),
         )
 

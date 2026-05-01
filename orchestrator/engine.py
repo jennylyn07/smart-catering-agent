@@ -33,6 +33,7 @@ from utils.json_schema import (
 )
 from utils.logger import log_event
 from utils.cosmos_store import get_container_name, persist_final_plan
+from utils.cosmos_store import format_past_orders_context, query_past_orders
 
 try:
     from semantic_kernel import Kernel
@@ -103,12 +104,12 @@ if kernel_function is not None:
             return await run_concierge(raw_customer_text=raw_customer_text, session_id=session_id)
 
         @kernel_function(name="head_chef")
-        async def head_chef(self, event_spec: EventSpecification, session_id: str) -> AgentMessage:
-            return await run_head_chef(event_spec=event_spec, session_id=session_id)
+        async def head_chef(self, event_spec: EventSpecification, session_id: str, past_context: str = "") -> AgentMessage:
+            return await run_head_chef(event_spec=event_spec, session_id=session_id, past_context=past_context)
 
         @kernel_function(name="accountant")
-        async def accountant(self, menu_plan_message: AgentMessage, event_spec: EventSpecification, session_id: str) -> AgentMessage:
-            return await run_accountant(menu_plan_message=menu_plan_message, event_spec=event_spec, session_id=session_id)
+        async def accountant(self, menu_plan_message: AgentMessage, event_spec: EventSpecification, session_id: str, past_context: str = "") -> AgentMessage:
+            return await run_accountant(menu_plan_message=menu_plan_message, event_spec=event_spec, session_id=session_id, past_context=past_context)
 
         @kernel_function(name="revise_menu_plan")
         async def revise_menu_plan(
@@ -721,6 +722,12 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
 
         event_spec = concierge_message.payload
 
+        past_orders = await query_past_orders(
+            cuisine_preferences=event_spec.cuisine_preferences or [],
+            guest_count=event_spec.guest_count,
+        )
+        past_context = format_past_orders_context(past_orders)
+
         shared_memory = SharedMemory(session_id=session_id, event_id=event_spec.event_id)
         shared_memory.set(key="dietary_restrictions", value=set(event_spec.dietary_restrictions), writer_agent_id=AGENT_ID)
         shared_memory.set(key="allergies", value=set(event_spec.allergies), writer_agent_id=AGENT_ID)
@@ -746,9 +753,10 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
                     plugin_name=plugin_name,
                     event_spec=ctx.event_spec,
                     session_id=ctx.session_id,
+                    past_context=past_context,
                 )
                 return result.value if result is not None else None
-            return await run_head_chef(event_spec=ctx.event_spec, session_id=ctx.session_id)
+            return await run_head_chef(event_spec=ctx.event_spec, session_id=ctx.session_id, past_context=past_context)
 
         menu_plan_message = await _call_with_retry(
             _head_chef_call,
@@ -781,12 +789,14 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
                     menu_plan_message=menu_plan_message,
                     event_spec=ctx.event_spec,
                     session_id=ctx.session_id,
+                    past_context=past_context,
                 )
                 return result.value if result is not None else None
             return await run_accountant(
                 menu_plan_message=menu_plan_message,
                 event_spec=ctx.event_spec,
                 session_id=ctx.session_id,
+                past_context=past_context,
             )
 
         cost_report_message = await _call_with_retry(
@@ -883,12 +893,14 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
                         menu_plan_message=menu_plan_message,
                         event_spec=ctx.event_spec,
                         session_id=ctx.session_id,
+                        past_context=past_context,
                     )
                     return result.value if result is not None else None
                 return await run_accountant(
                     menu_plan_message=menu_plan_message,
                     event_spec=ctx.event_spec,
                     session_id=ctx.session_id,
+                    past_context=past_context,
                 )
 
             cost_report_message = await _call_with_retry(

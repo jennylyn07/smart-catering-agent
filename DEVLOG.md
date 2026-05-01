@@ -588,6 +588,30 @@ Files: agents/head_chef.py, knowledge_base/recipes.json
   no flagged items. Scenario B correctly over budget (PHP 25,000 
   for 150 guests is mathematically near-impossible after labor costs)
 
+#### Session 25 — P9 Long-Term Memory
+Files: utils/cosmos_store.py, orchestrator/engine.py, 
+       agents/head_chef.py, agents/accountant.py
+- Added query_past_orders() to utils/cosmos_store.py: queries 
+  Cosmos for latest 20 orders, filters by cuisine match OR 
+  guest count within ±30%, returns up to 3 lightweight past 
+  event dicts. asyncio.wait_for(timeout=5.0) with internal 
+  TimeoutError catch — returns [] on any failure.
+- Added format_past_orders_context() to utils/cosmos_store.py:
+  formats past orders list into readable string for agent prompts
+- Single query_past_orders() call in orchestrator/engine.py 
+  after Concierge — result passed as past_context to both 
+  run_head_chef() and run_accountant() (including negotiation 
+  accountant call). CateringAgentsPlugin kernel functions updated.
+- run_head_chef() accepts past_context, threads it through 
+  _build_menu_items() → _gpt_select_recipe_ids() — appended 
+  to user prompt only when non-empty
+- run_accountant() accepts past_context, passes it to 
+  _gpt_flagged_analysis() and _gpt_cost_rationale() — appended 
+  to user prompts only when non-empty
+- Graceful degradation: empty past_context = no prompt change, 
+  pipeline unaffected
+- Result: 23/23 confirmed, Edge Case 6 at 28.911s (under 30s)
+
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT
 
 #### Session 1 — 2026-04-18 — What I Learned

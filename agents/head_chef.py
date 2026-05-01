@@ -28,6 +28,7 @@ from utils.json_schema import (
 )
 from utils.logger import log_event
 from utils.validator import normalize_dietary_flag
+from utils.cosmos_store import format_past_orders_context, query_past_orders
 
 AGENT_ID = "head_chef"
 
@@ -224,6 +225,7 @@ async def _gpt_select_recipe_ids(
     candidate_recipes: list[dict[str, Any]],
     desired_categories: list[str],
     max_items: int,
+    past_context: str = "",
 ) -> list[dict[str, str]]:
     client = create_async_azure_openai_client()
     deployment = get_azure_openai_deployment_name()
@@ -245,12 +247,20 @@ async def _gpt_select_recipe_ids(
         ],
     }
 
+    past_section = (
+        f"\n\n{past_context}\nUse past event data as reference for dish "
+        f"selection and variety — do not copy menus directly."
+        if past_context
+        else ""
+    )
+
     user_prompt = (
         "Select dishes from candidate_recipes that best fit the event. "
         "Hard requirements: must satisfy ALL dietary_restrictions and allergies. "
         "Aim for variety across categories in desired_categories. "
         "Return ONLY a JSON array of objects with keys: id, rationale.\n\n"
         + json.dumps(payload, ensure_ascii=False)
+        + past_section
     )
 
     response = await client.chat.completions.create(
@@ -674,6 +684,7 @@ async def _build_menu_items(
     blocked_allergens: set[str],
     dietary_restrictions: list[str],
     guest_count: int,
+    past_context: str = "",
 ) -> tuple[list[MenuItem], Optional[str]]:
     """Select a small menu across key categories and build MenuItem objects.
 
@@ -714,6 +725,7 @@ async def _build_menu_items(
             candidate_recipes=recipes,
             desired_categories=desired_order,
             max_items=len(desired_order),
+            past_context=past_context,
         )
 
         reasons = [str(r.get("rationale")).strip() for r in gpt_rows if str(r.get("rationale") or "").strip()]
@@ -1044,7 +1056,12 @@ async def revise_menu_plan(
         )
 
 
-async def run_head_chef(*, event_spec: EventSpecification, session_id: str) -> AgentMessage:
+async def run_head_chef(
+    *,
+    event_spec: EventSpecification,
+    session_id: str,
+    past_context: str = "",
+) -> AgentMessage:
     """Generate a safe MenuPlan for an event using the local recipes knowledge base.
 
     Args:
@@ -1087,6 +1104,7 @@ async def run_head_chef(*, event_spec: EventSpecification, session_id: str) -> A
             blocked_allergens=blocked_allergens,
             dietary_restrictions=event_spec.dietary_restrictions,
             guest_count=event_spec.guest_count,
+            past_context=past_context,
         )
 
         rationale = gpt_rationale or "Menu selected from the recipe knowledge base while excluding dishes that match the event allergy list."

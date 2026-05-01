@@ -1,6 +1,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 from datetime import datetime, timezone
@@ -24,6 +25,7 @@ from utils.json_schema import (
     StockItem,
 )
 from utils.logger import log_event
+from utils.azure_client import create_async_azure_openai_client, get_azure_openai_deployment_name
 
 AGENT_ID = "stock_manager"
 
@@ -237,6 +239,162 @@ def _waste_risk(ingredient: str) -> bool:
     return ing in perishable_keywords
 
 
+async def _gpt_waste_risk_assessment(
+    *,
+    waste_risk_items: list[str],
+    purchase_items: list[Any],
+    event_date: str,
+    guest_count: int,
+    prep_start_time: Any,
+) -> str:
+    """Generate event-specific waste risk assessment using GPT-4o.
+
+    Args:
+        waste_risk_items: Deterministically identified perishable ingredients.
+        purchase_items: Items that need to be purchased (name + quantity).
+        event_date: Event date string from EventSpecification.
+        guest_count: Number of guests for the event.
+        prep_start_time: Prep start datetime from LogisticsPlan.
+
+    Returns:
+        Event-specific waste minimization notes string. Falls back to static
+        string on any failure.
+    """
+    _STATIC_FALLBACK = (
+        "Prioritize early purchase of long lead-time items per logistics critical path. "
+        "Buy perishables (meat/vegetables) closer to prep start time to reduce spoilage risk."
+    )
+
+    if not waste_risk_items:
+        return _STATIC_FALLBACK
+
+    try:
+        client = create_async_azure_openai_client()
+        deployment = get_azure_openai_deployment_name()
+
+        purchase_summary = ", ".join(
+            f"{p.ingredient} ({p.quantity:.1f} {p.unit})"
+            for p in purchase_items
+            if p.ingredient in waste_risk_items
+        ) or "none identified"
+
+        system_prompt = (
+            "You are the Stock Manager agent for a professional catering operation. "
+            "Your job is to provide specific, actionable waste minimization guidance "
+            "based on the actual event details and ingredients involved.\n\n"
+            "PRINCIPLES TO APPLY:\n"
+            "- FIFO (First In First Out): older stock must be used before newer purchases\n"
+            "- Yield analysis: account for trimming/prep loss (meat ~15-20%, vegetables ~10-15%)\n"
+            "- Timing: perishables should arrive as close to prep start as possible\n"
+            "- Quantity awareness: larger quantities of perishables = higher spoilage risk\n"
+            "- Be specific to the actual ingredients listed — do not give generic advice\n\n"
+            "OUTPUT: 2-3 sentences maximum. Mention specific ingredients by name. "
+            "Give concrete timing or handling instructions. No bullet points. Plain text only."
+        )
+
+        user_prompt = (
+            f"Event date: {event_date}\n"
+            f"Guest count: {guest_count}\n"
+            f"Prep start time: {prep_start_time}\n"
+            f"Perishable items to purchase: {purchase_summary}\n\n"
+            "Provide specific waste minimization guidance for this event."
+        )
+
+        response = await asyncio.wait_for(
+            client.chat.completions.create(
+                model=deployment,
+                temperature=0.2,
+                max_tokens=150,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+            ),
+            timeout=8.0,
+        )
+
+        result = (response.choices[0].message.content or "").strip()
+        if not result:
+            return _STATIC_FALLBACK
+        return result
+
+    except (asyncio.TimeoutError, Exception):  # noqa: BLE001
+        return _STATIC_FALLBACK
+
+
+async def _gpt_supplier_rationale(
+    *,
+    purchase_items: list[Any],
+    event_date: str,
+    total_procurement_cost_php: float,
+) -> str:
+    """Generate a brief supplier selection rationale using GPT-4o.
+
+    Args:
+        purchase_items: PurchaseItem list with suggested_supplier and lead_time_days.
+        event_date: Event date string for urgency context.
+        total_procurement_cost_php: Total procurement cost for budget context.
+
+    Returns:
+        Short supplier rationale string. Falls back to static string on any failure.
+    """
+    _STATIC_FALLBACK = "Suppliers selected based on shortest lead time to meet event timeline."
+
+    if not purchase_items:
+        return _STATIC_FALLBACK
+
+    try:
+        client = create_async_azure_openai_client()
+        deployment = get_azure_openai_deployment_name()
+
+        supplier_summary = []
+        for p in purchase_items:
+            if p.suggested_supplier:
+                supplier_summary.append(
+                    f"{p.ingredient}: {p.suggested_supplier} "
+                    f"(lead time {p.lead_time_days} days, "
+                    f"est. PHP {p.estimated_cost_php:.2f})"
+                )
+        if not supplier_summary:
+            return _STATIC_FALLBACK
+
+        system_prompt = (
+            "You are the Stock Manager agent for a professional catering operation. "
+            "Explain in 1-2 sentences why these suppliers were selected for this event, "
+            "referencing lead time relative to the event date and the budget context. "
+            "Be specific — mention supplier names and ingredients. Plain text only. "
+            "No bullet points."
+        )
+
+        user_prompt = (
+            f"Event date: {event_date}\n"
+            f"Total procurement cost: PHP {total_procurement_cost_php:,.2f}\n"
+            f"Supplier assignments:\n" + "\n".join(supplier_summary) + "\n\n"
+            "Explain the supplier selection rationale for this event."
+        )
+
+        response = await asyncio.wait_for(
+            client.chat.completions.create(
+                model=deployment,
+                temperature=0.2,
+                max_tokens=100,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+            ),
+            timeout=8.0,
+        )
+
+        result = (response.choices[0].message.content or "").strip()
+        if not result:
+            return _STATIC_FALLBACK
+        return result
+
+    except (asyncio.TimeoutError, Exception):  # noqa: BLE001
+        return _STATIC_FALLBACK
+
+
 async def run_stock_manager(
     *,
     logistics_plan_message: AgentMessage,
@@ -356,9 +514,22 @@ async def run_stock_manager(
             if p.suggested_supplier and p.suggested_supplier not in preferred_suppliers:
                 preferred_suppliers.append(p.suggested_supplier)
 
-        waste_minimization_notes = (
-            "Prioritize early purchase of long lead-time items per logistics critical path. "
-            "Buy perishables (meat/vegetables) closer to prep start time to reduce spoilage risk."
+        event_date = str(logistics_plan.prep_start_time)[:10]
+        guest_count_proxy = len(cost_report.line_items)
+
+        waste_minimization_notes, supplier_rationale = await asyncio.gather(
+            _gpt_waste_risk_assessment(
+                waste_risk_items=sorted(set(waste_risk_items)),
+                purchase_items=purchase_items,
+                event_date=event_date,
+                guest_count=guest_count_proxy,
+                prep_start_time=logistics_plan.prep_start_time,
+            ),
+            _gpt_supplier_rationale(
+                purchase_items=purchase_items,
+                event_date=event_date,
+                total_procurement_cost_php=round(total_procurement_cost, 2),
+            ),
         )
 
         procurement = ProcurementList(
@@ -390,6 +561,7 @@ async def run_stock_manager(
                 "out_of_stock_count": len(procurement.out_of_stock_alerts),
                 "total_procurement_cost_php": procurement.total_procurement_cost_php,
                 "timeline_hint": logistics_plan.prep_start_time,
+                "stock_manager_ai_reasoning": supplier_rationale,
             },
         )
 

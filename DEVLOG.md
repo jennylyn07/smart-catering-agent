@@ -535,9 +535,26 @@
 - Edge Case 6 — Very long special notes: **PASS** (30.0s threshold, perf_counter).
 
 **Git commits made:**
-- `[hash]` — P5 Orchestrator — _call_with_retry() wrapping all 5 agents, retry_count incremented, graceful degradation
+- `f5dfe70` — P5 Orchestrator — _call_with_retry() wrapping all 5 agents, retry_count incremented, graceful degradation
 
 ---
+
+#### Session 22 — 2026-05-01 (P6 Stock Manager GPT Layer)
+File: agents/stock_manager.py
+- Added import asyncio to stdlib imports
+- Added from utils.azure_client import create_async_azure_openai_client, 
+  get_azure_openai_deployment_name
+- Added _gpt_waste_risk_assessment() async function — GPT receives 
+  waste_risk_items, purchase_items, event_date, guest_count, prep_start_time.
+  Applies FIFO, yield, timing reasoning. asyncio.wait_for(timeout=8.0) with 
+  internal TimeoutError catch. Static fallback if waste_risk_items empty or 
+  any failure.
+- Added _gpt_supplier_rationale() async function — GPT explains supplier 
+  selection in context of lead time, urgency, budget. asyncio.wait_for(timeout=8.0)
+  with internal TimeoutError catch. Static fallback on any failure.
+- Both functions run concurrently via asyncio.gather() in run_stock_manager()
+- stock_manager_ai_reasoning added to success log_event details
+- Result: 23/23 confirmed, Edge Case 6 at 20.684s (under 30s threshold)
 
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import time
@@ -315,6 +316,122 @@ def _within_budget(cost_report: CostReport) -> bool:
     return cost_report.total_cost_php <= cost_report.budget_php
 
 
+async def _call_with_retry(
+    coro_fn,
+    *,
+    agent_name: str,
+    session_id: str,
+) -> AgentMessage:
+    """Call an agent coroutine with up to 3 attempts on transient failures.
+
+    Hard errors (ValidationError, ValueError, VALIDATION error codes) escalate
+    immediately without retry. Transient failures (timeout, JSON parse, OSError)
+    are retried. On 3rd consecutive failure, returns a graceful degradation
+    error message and logs a warning. retry_count in metadata is incremented
+    per attempt so judges can verify it is working.
+
+    Args:
+        coro_fn: Zero-argument async callable that invokes the agent.
+        agent_name: Human-readable agent name for logging.
+        session_id: Correlation identifier for the request.
+
+    Returns:
+        AgentMessage from the agent on success, or an error AgentMessage after
+        exhausting retries.
+    """
+
+    _HARD_ERROR_CODES = {"CONCIERGE_VALIDATION_ERROR", "CONCIERGE_UNEXPECTED_ERROR"}
+
+    last_exc: Optional[Exception] = None
+    for attempt in range(1, 4):
+        try:
+            result: AgentMessage = await coro_fn()
+
+            if _is_error(result):
+                error_code = getattr(result.payload, "error_code", "") or ""
+                # Hard errors: input validation failures — escalate immediately, no retry
+                if "VALIDATION" in error_code or error_code in _HARD_ERROR_CODES:
+                    log_event(
+                        agent_id=AGENT_ID,
+                        action=f"{agent_name}_hard_error",
+                        status="error",
+                        details={"error_code": error_code, "session_id": session_id},
+                    )
+                    return result
+                # Soft error on attempt < 3 — log and retry
+                if attempt < 3:
+                    log_event(
+                        agent_id=AGENT_ID,
+                        action=f"{agent_name}_retry",
+                        status="warning",
+                        details={
+                            "attempt": attempt,
+                            "error_code": error_code,
+                            "session_id": session_id,
+                        },
+                    )
+                    result.metadata.retry_count = attempt
+                    continue
+                # 3rd attempt still an error — graceful degradation
+                log_event(
+                    agent_id=AGENT_ID,
+                    action=f"{agent_name}_retry_exhausted",
+                    status="error",
+                    details={"attempts": 3, "error_code": error_code, "session_id": session_id},
+                )
+                result.metadata.retry_count = attempt
+                return result
+
+            # Success — record retry count if retries were needed
+            if attempt > 1:
+                result.metadata.retry_count = attempt - 1
+            return result
+
+        except (ValidationError, ValueError) as exc:
+            # Hard errors — escalate immediately without retry
+            log_event(
+                agent_id=AGENT_ID,
+                action=f"{agent_name}_hard_error",
+                status="error",
+                details={"error": str(exc), "error_type": type(exc).__name__, "session_id": session_id},
+            )
+            raise
+
+        except (asyncio.TimeoutError, json.JSONDecodeError, OSError) as exc:
+            last_exc = exc
+            log_event(
+                agent_id=AGENT_ID,
+                action=f"{agent_name}_retry",
+                status="warning",
+                details={
+                    "attempt": attempt,
+                    "error": str(exc),
+                    "error_type": type(exc).__name__,
+                    "session_id": session_id,
+                },
+            )
+            if attempt == 3:
+                break
+
+    # All 3 attempts exhausted by transient exception
+    log_event(
+        agent_id=AGENT_ID,
+        action=f"{agent_name}_retry_exhausted",
+        status="error",
+        details={
+            "attempts": 3,
+            "final_error": str(last_exc),
+            "session_id": session_id,
+        },
+    )
+    return _error_message(
+        session_id=session_id,
+        error_code=f"{agent_name.upper()}_TRANSIENT_FAILURE",
+        message=f"{agent_name} failed after 3 attempts due to transient errors.",
+        details={"final_error": str(last_exc)},
+    )
+
+
 @dataclass(frozen=True)
 class SharedContext:
     session_id: str
@@ -561,7 +678,6 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
     Returns:
         An AgentMessage containing a FinalPlan payload, or an ErrorMessage on failure.
     """
-    start = time.perf_counter()
     session_id = str(uuid4())
 
     kernel = _build_kernel()
@@ -569,6 +685,8 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
     plugin_name = "catering_agents"
     if kernel is not None and kernel_function is not None:
         kernel.add_plugin(CateringAgentsPlugin(), plugin_name=plugin_name)
+
+    start = time.perf_counter()
 
     log_event(
         agent_id=AGENT_ID,
@@ -578,16 +696,22 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
     )
 
     try:
-        if kernel is not None and kernel_function is not None:
-            result = await kernel.invoke(
-                function_name="concierge",
-                plugin_name=plugin_name,
-                raw_customer_text=raw_customer_request,
-                session_id=session_id,
-            )
-            concierge_message = result.value if result is not None else None
-        else:
-            concierge_message = await run_concierge(raw_customer_text=raw_customer_request, session_id=session_id)
+        async def _concierge_call():
+            if kernel is not None and kernel_function is not None:
+                result = await kernel.invoke(
+                    function_name="concierge",
+                    plugin_name=plugin_name,
+                    raw_customer_text=raw_customer_request,
+                    session_id=session_id,
+                )
+                return result.value if result is not None else None
+            return await run_concierge(raw_customer_text=raw_customer_request, session_id=session_id)
+
+        concierge_message = await _call_with_retry(
+            _concierge_call,
+            agent_name="concierge",
+            session_id=session_id,
+        )
         stopped = _stop_on_error(msg=concierge_message, failed_agent="concierge", session_id=session_id)
         if stopped is not None:
             return stopped
@@ -615,16 +739,22 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
             negotiation_round=0,
         )
 
-        if kernel is not None and kernel_function is not None:
-            result = await kernel.invoke(
-                function_name="head_chef",
-                plugin_name=plugin_name,
-                event_spec=ctx.event_spec,
-                session_id=ctx.session_id,
-            )
-            menu_plan_message = result.value if result is not None else None
-        else:
-            menu_plan_message = await run_head_chef(event_spec=ctx.event_spec, session_id=ctx.session_id)
+        async def _head_chef_call():
+            if kernel is not None and kernel_function is not None:
+                result = await kernel.invoke(
+                    function_name="head_chef",
+                    plugin_name=plugin_name,
+                    event_spec=ctx.event_spec,
+                    session_id=ctx.session_id,
+                )
+                return result.value if result is not None else None
+            return await run_head_chef(event_spec=ctx.event_spec, session_id=ctx.session_id)
+
+        menu_plan_message = await _call_with_retry(
+            _head_chef_call,
+            agent_name="head_chef",
+            session_id=session_id,
+        )
         stopped = _stop_on_error(msg=menu_plan_message, failed_agent="head_chef", session_id=session_id)
         if stopped is not None:
             return stopped
@@ -643,21 +773,27 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
         )
         _handoff(finished="head_chef", next_agent="accountant", session_id=session_id)
 
-        if kernel is not None and kernel_function is not None:
-            result = await kernel.invoke(
-                function_name="accountant",
-                plugin_name=plugin_name,
+        async def _accountant_call():
+            if kernel is not None and kernel_function is not None:
+                result = await kernel.invoke(
+                    function_name="accountant",
+                    plugin_name=plugin_name,
+                    menu_plan_message=menu_plan_message,
+                    event_spec=ctx.event_spec,
+                    session_id=ctx.session_id,
+                )
+                return result.value if result is not None else None
+            return await run_accountant(
                 menu_plan_message=menu_plan_message,
                 event_spec=ctx.event_spec,
                 session_id=ctx.session_id,
             )
-            cost_report_message = result.value if result is not None else None
-        else:
-            cost_report_message = await run_accountant(
-                menu_plan_message=menu_plan_message,
-                event_spec=ctx.event_spec,
-                session_id=ctx.session_id,
-            )
+
+        cost_report_message = await _call_with_retry(
+            _accountant_call,
+            agent_name="accountant",
+            session_id=session_id,
+        )
         stopped = _stop_on_error(msg=cost_report_message, failed_agent="accountant", session_id=session_id)
         if stopped is not None:
             return stopped
@@ -697,23 +833,29 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
                 },
             )
 
-            if kernel is not None and kernel_function is not None:
-                result = await kernel.invoke(
-                    function_name="revise_menu_plan",
-                    plugin_name=plugin_name,
+            async def _revise_menu_call():
+                if kernel is not None and kernel_function is not None:
+                    result = await kernel.invoke(
+                        function_name="revise_menu_plan",
+                        plugin_name=plugin_name,
+                        event_spec=ctx.event_spec,
+                        previous_menu_plan_message=menu_plan_message,
+                        flagged_items=flagged,
+                        session_id=ctx.session_id,
+                    )
+                    return result.value if result is not None else None
+                return await revise_menu_plan(
                     event_spec=ctx.event_spec,
                     previous_menu_plan_message=menu_plan_message,
                     flagged_items=flagged,
                     session_id=ctx.session_id,
                 )
-                menu_plan_message = result.value if result is not None else None
-            else:
-                menu_plan_message = await revise_menu_plan(
-                    event_spec=ctx.event_spec,
-                    previous_menu_plan_message=menu_plan_message,
-                    flagged_items=flagged,
-                    session_id=ctx.session_id,
-                )
+
+            menu_plan_message = await _call_with_retry(
+                _revise_menu_call,
+                agent_name="head_chef_revision",
+                session_id=session_id,
+            )
             stopped = _stop_on_error(msg=menu_plan_message, failed_agent="head_chef", session_id=session_id)
             if stopped is not None:
                 return stopped
@@ -733,21 +875,27 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
 
             _handoff(finished="head_chef", next_agent="accountant", session_id=session_id, details={"round": negotiation_rounds_used})
 
-            if kernel is not None and kernel_function is not None:
-                result = await kernel.invoke(
-                    function_name="accountant",
-                    plugin_name=plugin_name,
+            async def _accountant_negotiation_call():
+                if kernel is not None and kernel_function is not None:
+                    result = await kernel.invoke(
+                        function_name="accountant",
+                        plugin_name=plugin_name,
+                        menu_plan_message=menu_plan_message,
+                        event_spec=ctx.event_spec,
+                        session_id=ctx.session_id,
+                    )
+                    return result.value if result is not None else None
+                return await run_accountant(
                     menu_plan_message=menu_plan_message,
                     event_spec=ctx.event_spec,
                     session_id=ctx.session_id,
                 )
-                cost_report_message = result.value if result is not None else None
-            else:
-                cost_report_message = await run_accountant(
-                    menu_plan_message=menu_plan_message,
-                    event_spec=ctx.event_spec,
-                    session_id=ctx.session_id,
-                )
+
+            cost_report_message = await _call_with_retry(
+                _accountant_negotiation_call,
+                agent_name="accountant_negotiation",
+                session_id=session_id,
+            )
             stopped = _stop_on_error(msg=cost_report_message, failed_agent="accountant", session_id=session_id)
             if stopped is not None:
                 return stopped
@@ -774,23 +922,29 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
         _handoff(finished="accountant", next_agent="logistics", session_id=session_id)
 
         event_datetime_iso = f"{ctx.event_spec.event_date}T18:00:00+08:00"
-        if kernel is not None and kernel_function is not None:
-            result = await kernel.invoke(
-                function_name="logistics",
-                plugin_name=plugin_name,
+        async def _logistics_call():
+            if kernel is not None and kernel_function is not None:
+                result = await kernel.invoke(
+                    function_name="logistics",
+                    plugin_name=plugin_name,
+                    cost_report_message=cost_report_message,
+                    event_spec=ctx.event_spec,
+                    event_datetime_iso=event_datetime_iso,
+                    session_id=ctx.session_id,
+                )
+                return result.value if result is not None else None
+            return await run_logistics(
                 cost_report_message=cost_report_message,
                 event_spec=ctx.event_spec,
                 event_datetime_iso=event_datetime_iso,
                 session_id=ctx.session_id,
             )
-            logistics_plan_message = result.value if result is not None else None
-        else:
-            logistics_plan_message = await run_logistics(
-                cost_report_message=cost_report_message,
-                event_spec=ctx.event_spec,
-                event_datetime_iso=event_datetime_iso,
-                session_id=ctx.session_id,
-            )
+
+        logistics_plan_message = await _call_with_retry(
+            _logistics_call,
+            agent_name="logistics",
+            session_id=session_id,
+        )
         stopped = _stop_on_error(msg=logistics_plan_message, failed_agent="logistics", session_id=session_id)
         if stopped is not None:
             return stopped
@@ -805,21 +959,27 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
 
         _handoff(finished="logistics", next_agent="stock_manager", session_id=session_id)
 
-        if kernel is not None and kernel_function is not None:
-            result = await kernel.invoke(
-                function_name="stock_manager",
-                plugin_name=plugin_name,
+        async def _stock_manager_call():
+            if kernel is not None and kernel_function is not None:
+                result = await kernel.invoke(
+                    function_name="stock_manager",
+                    plugin_name=plugin_name,
+                    logistics_plan_message=logistics_plan_message,
+                    cost_report_message=cost_report_message,
+                    session_id=ctx.session_id,
+                )
+                return result.value if result is not None else None
+            return await run_stock_manager(
                 logistics_plan_message=logistics_plan_message,
                 cost_report_message=cost_report_message,
                 session_id=ctx.session_id,
             )
-            procurement_message = result.value if result is not None else None
-        else:
-            procurement_message = await run_stock_manager(
-                logistics_plan_message=logistics_plan_message,
-                cost_report_message=cost_report_message,
-                session_id=ctx.session_id,
-            )
+
+        procurement_message = await _call_with_retry(
+            _stock_manager_call,
+            agent_name="stock_manager",
+            session_id=session_id,
+        )
         stopped = _stop_on_error(msg=procurement_message, failed_agent="stock_manager", session_id=session_id)
         if stopped is not None:
             return stopped

@@ -513,6 +513,30 @@
 **Git commits made:**
 - `[hash]` — Concierge location fallback — prompt + code default to Venue TBC, DEVLOG P3 entry + P4 hash fix
 
+#### Session 21 — 2026-04-30 (P5)
+**What we built / changed (Orchestrator retry logic):**
+- `orchestrator/engine.py`: Added `import asyncio` at top of file (immediately above `import hashlib`).
+- `orchestrator/engine.py`: Added `_call_with_retry()` async function immediately after `_within_budget()` and before `@dataclass SharedContext`. Wraps agent calls with up to 3 retry attempts on transient failures (asyncio.TimeoutError, json.JSONDecodeError, OSError). Hard errors (ValidationError, ValueError, VALIDATION error codes) escalate immediately without retry. 3rd failure returns graceful degradation error message. `retry_count` in `MessageMetadata` incremented per attempt so judges can verify.
+- `orchestrator/engine.py`: All 7 agent calls in `run_orchestration()` wrapped with `_call_with_retry()` using local async wrapper functions: `_concierge_call`, `_head_chef_call`, `_accountant_call`, `_revise_menu_call`, `_accountant_negotiation_call`, `_logistics_call`, `_stock_manager_call`.
+- `orchestrator/engine.py`: `start = time.perf_counter()` moved to after kernel plugin setup (functionally identical, microsecond difference).
+- `adapt_from_existing_plan` was NOT touched — out of scope.
+- `tests/test_correctness.py`: Edge Case 6 threshold confirmed at 30.0s (an unauthorized change to 120.0 during implementation was reverted before commit).
+
+**What broke and how we fixed it:**
+- Windsurf changed Edge Case 6 threshold from 30.0 to 120.0 without authorization. Reverted to 30.0 before commit — confirmed Edge Case 6 passes with perf_counter and original threshold.
+- Windsurf claimed a `memoray` import typo fix — git diff confirmed no such typo existed. No change made.
+- Backend was running on global Python interpreter instead of venv during testing — restarted with venv before final suite run.
+
+**Azure resources used this session:**
+- Azure OpenAI (GPT-4o) — all agent calls during correctness suite run.
+
+**Testing results:**
+- `venv\Scripts\python.exe -m tests.test_correctness`: **TOTAL: 23/23 checks passed**.
+- Edge Case 6 — Very long special notes: **PASS** (30.0s threshold, perf_counter).
+
+**Git commits made:**
+- `[hash]` — P5 Orchestrator — _call_with_retry() wrapping all 5 agents, retry_count incremented, graceful degradation
+
 ---
 
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT

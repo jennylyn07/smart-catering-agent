@@ -570,6 +570,24 @@ File: agents/logistics.py
   Scenario D both buffet (12 servers) and full bar (9 bartenders) 
   calculated explicitly with T-minus timeline tasks
 
+#### Session 24 — P8 Head Chef Prompt Enrichment
+Files: agents/head_chef.py, knowledge_base/recipes.json
+- Added MENU ENGINEERING FRAMEWORK section to 
+  _head_chef_gpt_system_prompt(): Stars/Plow Horses/Puzzles/Dogs 
+  quadrant thinking, cross-utilization principle, universal design 
+  15-20% vegan/vegetarian/gluten-free
+- Added Recipe Reformulation priority order to 
+  _gpt_select_replacement_recipe_ids() user prompt: Protein 
+  Down-Tiering → Portion Re-balancing → Service Style note → 
+  Dish removal as last resort only
+- Fixed knowledge_base/recipes.json chn-001 (Yangzhou Fried Rice): 
+  replaced ham with chicken strips, added halal to dietary_flags
+- Azure AI Search index rebuilt: 51 docs confirmed
+- Prompt changes only in head_chef.py, no code structure changes
+- Verified: Scenario C halal-compliant dish list, within budget, 
+  no flagged items. Scenario B correctly over budget (PHP 25,000 
+  for 150 guests is mathematically near-impossible after labor costs)
+
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT
 
 #### Session 1 — 2026-04-18 — What I Learned

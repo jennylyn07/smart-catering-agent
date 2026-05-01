@@ -173,7 +173,23 @@ def _head_chef_gpt_system_prompt() -> str:
         "OUTPUT FORMAT (strict):\n"
         "Return ONLY a valid JSON array of objects. Each object MUST be:\n"
         '{"id": "<recipe_id>", "reason": "<short reason>"}\n'
-        "No extra keys. No markdown. No additional text."
+        "No extra keys. No markdown. No additional text.\n\n"
+        "MENU ENGINEERING FRAMEWORK:\n"
+        "Apply menu engineering quadrant thinking to all menu decisions:\n"
+        "- Stars (high popularity, high margin): Anchor dishes — never remove, \n"
+        "  always include as centerpiece items\n"
+        "- Plow Horses (high popularity, low margin): Reformulate before \n"
+        "  removing — adjust protein, portion, or preparation method to improve \n"
+        "  margin while preserving guest appeal\n"
+        "- Puzzles (low popularity, high margin): Consider repricing or \n"
+        "  repositioning rather than removing\n"
+        "- Dogs (low popularity, low margin): Avoid selecting these as primary \n"
+        "  dishes\n\n"
+        "Cross-utilization principle: where possible, select dishes that share \n"
+        "key ingredients to reduce procurement complexity and waste.\n\n"
+        "Universal design: ensure 15-20% of all dishes are inherently \n"
+        "vegan, vegetarian, or gluten-free — not as substitutions but as \n"
+        "genuinely appealing options for all guests."
     )
 
 
@@ -303,6 +319,19 @@ async def _gpt_select_replacement_recipe_ids(
     }
 
     user_prompt = (
+        "---\n"
+        "Before removing any dish, follow this reformulation priority order:\n"
+        "1. Protein Down-Tiering: can the protein be substituted for a \n"
+        "   less expensive alternative while preserving the dish character? \n"
+        "   (e.g. beef → pork, prawns → fish)\n"
+        "2. Portion Re-balancing: can the portion size be adjusted to bring \n"
+        "   cost within budget without removing the dish entirely?\n"
+        "3. Service Style note: can a preparation or service style change \n"
+        "   reduce cost? (e.g. bone-in → boneless, whole → sliced)\n"
+        "4. Dish removal: last resort only — remove the dish only if steps \n"
+        "   1-3 cannot bring cost within the required budget gap\n\n"
+        "Apply this priority order before selecting replacement recipe IDs.\n"
+        "---\n\n"
         "You are revising a menu after budget review. "
         "Replace the flagged items with the best substitutes from safe_candidate_recipes. "
         "Hard requirements: must satisfy ALL dietary_restrictions and allergies. "

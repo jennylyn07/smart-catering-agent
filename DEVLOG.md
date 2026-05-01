@@ -556,6 +556,20 @@ File: agents/stock_manager.py
 - stock_manager_ai_reasoning added to success log_event details
 - Result: 23/23 confirmed, Edge Case 6 at 20.684s (under 30s threshold)
 
+#### Session 23 — P7 Logistics Lead Prompt Enrichment
+File: agents/logistics.py
+- Added STAFFING RATIOS section to _gpt_interpret_notes() system prompt:
+  industry ratios for plated (1:10-12), buffet (1:20-25), family (1:15),
+  cocktail (1:20), full bar (1:35), beer/wine (1:50)
+- Added default assumption rule: if service style not stated, assume 
+  plated and calculate accordingly, noting the assumption
+- Added T-MINUS CRITICAL PATH section: T-0 through T-48h reference points
+  for extra_timeline_tasks generation
+- Prompt changes only, no code structure changes
+- Verified: Scenario C staffing calculated (7 servers, plated assumption),
+  Scenario D both buffet (12 servers) and full bar (9 bartenders) 
+  calculated explicitly with T-minus timeline tasks
+
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT
 
 #### Session 1 — 2026-04-18 — What I Learned

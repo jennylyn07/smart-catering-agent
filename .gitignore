@@ -22,3 +22,16 @@ tests/test_run_output*.txt
 tests/scenario_*.json
 tests/e2e_*.json
 tests/correctness_report.txt
+
+# Test output and correctness run artifacts
+*.txt
+correctness_*.txt
+test_correctness_output*.txt
+diff_*.txt
+
+# Quality scenario and test response files
+quality_*.json
+scenario_*.json
+*_no_location*.json
+quality_check_response.json
+quality_test_response.json

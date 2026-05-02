@@ -649,6 +649,18 @@ Files: frontend/src/index.css,
   budget correctly reported) and Scenario C (halal, within
   budget) both passing visually
 
+#### Session 27 — Cosmos timeout restored to 5.0s
+File: utils/cosmos_store.py
+- query_past_orders() timeout restored from 1.0s back to 5.0s
+- Rationale: reducing timeout to pass Edge Case 6 30s threshold 
+  would compromise long-term memory quality — if Cosmos has 
+  relevant past order context it needs adequate time to return it
+- Edge Case 6 timing is Azure free tier dependent (33-44s on 
+  high-latency runs) — acceptable tradeoff for correct system 
+  behavior
+- 22/23 correctness suite — Edge Case 6 passes functionally, 
+  marginal on timing under free tier latency only
+
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT
 
 #### Session 1 — 2026-04-18 — What I Learned

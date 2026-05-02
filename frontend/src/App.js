@@ -30,13 +30,31 @@ function App() {
     }
 
     try {
+      // Convert structured form payload to raw_customer_text string
+      // that the Concierge agent expects
+      const parts = [];
+      if (payload.guest_count) parts.push(`${payload.guest_count} guests`);
+      if (payload.cuisine_preferences?.length)
+        parts.push(`${payload.cuisine_preferences.join(' and ')} cuisine`);
+      if (payload.budget_php) parts.push(`PHP ${payload.budget_php} budget`);
+      if (payload.event_date) parts.push(payload.event_date);
+      if (payload.event_name) parts.push(payload.event_name);
+      if (payload.location) parts.push(`at ${payload.location}`);
+      if (payload.dietary_restrictions?.length)
+        parts.push(`dietary requirements: ${payload.dietary_restrictions.join(', ')}`);
+      if (payload.allergies?.length)
+        parts.push(`allergies: ${payload.allergies.join(', ')}`);
+      if (payload.notes) parts.push(payload.notes);
+
+      const raw_customer_text = parts.join(', ');
+
       const response = await fetch('/api/v1/catering/order', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-API-Key': apiKey,
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ raw_customer_text }),
       });
 
       const body = await response.json().catch(() => null);
@@ -78,7 +96,9 @@ function App() {
 
       {errorMessage && (
         <div className="errorBanner" role="alert">
-          {errorMessage}
+          {typeof errorMessage === 'string'
+            ? errorMessage
+            : JSON.stringify(errorMessage)}
         </div>
       )}
 

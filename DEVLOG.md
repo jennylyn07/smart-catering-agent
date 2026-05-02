@@ -612,6 +612,43 @@ Files: utils/cosmos_store.py, orchestrator/engine.py,
   pipeline unaffected
 - Result: 23/23 confirmed, Edge Case 6 at 28.911s (under 30s)
 
+#### Session 26 — P10 UI Improvements + Neumorphic Design System
+Files: frontend/src/index.css,
+       frontend/src/components/ResultsDashboard.css,
+       frontend/src/components/ResultsDashboard.js,
+       frontend/src/App.js,
+       frontend/package.json,
+       frontend/src/components/OrderForm.js,
+       agents/head_chef.py,
+       knowledge_base/recipes.json
+- Applied neumorphic design system: #EFF2F9 background,
+  FAFBFF/161B1D shadow system, Avenir Next font stack
+- Added dietary and allergy badge pills
+- Added agent pipeline strip: all 5 agents with checkmarks
+- Added Head Chef reasoning card (collapsible, above dish table)
+  now shows real GPT rationale instead of static string
+- Fixed revise_menu_plan(): GPT rationales extracted from
+  _gpt_select_replacement_recipe_ids() rows
+- Added warning banner when fewer than 5 dishes selected
+- Added negotiation panel in Cost tab: always visible.
+  When over budget: shows rounds, flagged items labeled
+  "Could not be resolved within budget" in red, GPT notes.
+  When within budget: shows "Budget approved" message.
+- Added staffing notes card in Timeline tab (above table)
+- Added waste risk items card above procurement table
+- Added processing time to summary row
+- Fixed timeline timestamps to human readable format
+- Fixed procurement quantity decimal precision
+- Fixed App.js: form builds raw_customer_text for backend
+- Fixed App.js: error banner handles non-string errors
+- Fixed frontend/package.json: proxy corrected to port 8001
+- Fixed OrderForm.js: date input min set to today
+- Fixed knowledge_base/recipes.json: Sinangag category
+  noodles → rice, Azure AI Search reindexed (51 docs)
+- Quality tested: Scenario B (3 negotiation rounds, over
+  budget correctly reported) and Scenario C (halal, within
+  budget) both passing visually
+
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT
 
 #### Session 1 — 2026-04-18 — What I Learned

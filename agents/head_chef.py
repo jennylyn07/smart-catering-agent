@@ -928,6 +928,14 @@ async def revise_menu_plan(
                     continue
                 picked.append(recipe)
 
+            gpt_rationales = [
+                str(row.get("rationale") or "").strip()
+                for row in gpt_rows
+                if str(row.get("rationale") or "").strip()
+            ]
+            if gpt_rationales:
+                revised_rationale = " | ".join(gpt_rationales)
+
             for cat in desired_categories:
                 if cat in existing_categories:
                     continue

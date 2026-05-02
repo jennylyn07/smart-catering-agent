@@ -91,6 +91,7 @@ export default function OrderForm({ isLoading, onSubmit }) {
             type="date"
             value={eventDate}
             onChange={(e) => setEventDate(e.target.value)}
+            min={new Date().toISOString().split('T')[0]}
             disabled={isLoading}
             required
           />

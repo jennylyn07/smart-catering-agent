@@ -670,7 +670,11 @@ async def adapt_from_existing_plan(
     )
 
 
-async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
+async def run_orchestration(
+    *,
+    raw_customer_request: str,
+    progress_callback=None,
+) -> AgentMessage:
     """Run the full Concierge→Head Chef→Accountant→Logistics→Stock Manager pipeline.
 
     Args:
@@ -719,6 +723,8 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
         if not isinstance(concierge_message.payload, EventSpecification):
             raise ValueError("Concierge did not return EventSpecification")
         _handoff(finished="concierge", next_agent="head_chef", session_id=session_id)
+        if progress_callback:
+            progress_callback("concierge", "done")
 
         event_spec = concierge_message.payload
 
@@ -780,6 +786,8 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
             writer_agent_id=AGENT_ID,
         )
         _handoff(finished="head_chef", next_agent="accountant", session_id=session_id)
+        if progress_callback:
+            progress_callback("head_chef", "done")
 
         async def _accountant_call():
             if kernel is not None and kernel_function is not None:
@@ -884,6 +892,8 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
             )
 
             _handoff(finished="head_chef", next_agent="accountant", session_id=session_id, details={"round": negotiation_rounds_used})
+            if progress_callback:
+                progress_callback("head_chef", "done")
 
             async def _accountant_negotiation_call():
                 if kernel is not None and kernel_function is not None:
@@ -932,6 +942,8 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
             )
 
         _handoff(finished="accountant", next_agent="logistics", session_id=session_id)
+        if progress_callback:
+            progress_callback("accountant", "done")
 
         event_datetime_iso = f"{ctx.event_spec.event_date}T18:00:00+08:00"
         async def _logistics_call():
@@ -970,6 +982,8 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
         )
 
         _handoff(finished="logistics", next_agent="stock_manager", session_id=session_id)
+        if progress_callback:
+            progress_callback("logistics", "done")
 
         async def _stock_manager_call():
             if kernel is not None and kernel_function is not None:
@@ -997,6 +1011,9 @@ async def run_orchestration(*, raw_customer_request: str) -> AgentMessage:
             return stopped
         if not isinstance(procurement_message.payload, ProcurementList):
             raise ValueError("Stock Manager did not return ProcurementList")
+
+        if progress_callback:
+            progress_callback("stock_manager", "done")
 
         shared_memory.set_agent_output(
             agent_id="stock_manager",

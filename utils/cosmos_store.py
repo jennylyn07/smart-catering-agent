@@ -263,50 +263,62 @@ async def get_recent_orders(*, limit: int = 20) -> list:
     
     Returns list of lightweight order summary dicts.
     Gracefully returns empty list on any failure.
+    
+    WARNING: This function makes a network call to Azure Cosmos DB.
     """
     try:
         client = create_cosmos_client()
         try:
             database = client.get_database_client(get_database_name())
             container = database.get_container_client(get_container_name())
+            query = (
+                f"SELECT TOP {limit} c.id, c._ts, "
+                "c.final_plan.event_specification, "
+                "c.final_plan.cost_report "
+                "FROM c "
+                "ORDER BY c._ts DESC"
+            )
 
-            async def _fetch():
-                query = (
-                    "SELECT c.id, c.final_plan FROM c "
-                    "ORDER BY c._ts DESC "
-                    f"OFFSET 0 LIMIT {limit}"
-                )
-                result = []
-                async for item in container.query_items(query=query):
-                    fp = item.get("final_plan") or {}
-                    event_spec = fp.get("event_specification") or {}
-                    cost = fp.get("cost_report") or {}
-                    result.append({
-                        "order_id": item.get("id"),
-                        "event_name": event_spec.get("event_name") or "Unnamed Event",
-                        "event_date": event_spec.get("event_date") or "",
-                        "guest_count": event_spec.get("guest_count") or 0,
-                        "budget_php": event_spec.get("budget_php") or 0,
-                        "total_cost_php": cost.get("total_cost_php") or 0,
-                        "within_budget": cost.get("within_budget") 
-                                        or cost.get("is_within_budget"),
-                        "cuisine_preferences": event_spec.get(
-                            "cuisine_preferences") or [],
-                    })
-                return result
+            raw = []
+            async for item in container.query_items(query=query):
+                raw.append(item)
 
-            items = await asyncio.wait_for(_fetch(), timeout=5.0)
+            result = []
+            for item in raw:
+                event_spec = item.get("event_specification") or {}
+                cost = item.get("cost_report") or {}
+                order_id = item.get("id")
+                if not order_id or not event_spec:
+                    continue
+                result.append({
+                    "order_id": order_id,
+                    "event_name": event_spec.get("event_name") 
+                                  or "Unnamed Event",
+                    "event_date": event_spec.get("event_date") or "",
+                    "guest_count": event_spec.get("guest_count") or 0,
+                    "budget_php": event_spec.get("budget_php") or 0,
+                    "total_cost_php": cost.get("total_cost_php") or 0,
+                    "within_budget": (
+                        cost.get("within_budget") 
+                        or cost.get("is_within_budget")
+                    ),
+                    "cuisine_preferences": (
+                        event_spec.get("cuisine_preferences") or []
+                    ),
+                })
+            return result
         finally:
             await client.close()
-
-        return items
 
     except Exception as exc:
         log_event(
             agent_id="cosmos_store",
             action="get_recent_orders",
             status="error",
-            details={"error": str(exc), "error_type": type(exc).__name__},
+            details={
+                "error": str(exc),
+                "error_type": type(exc).__name__,
+            },
         )
         return []
 

@@ -709,6 +709,40 @@ Files: utils/cosmos_store.py, api/routes.py, frontend/src/App.js,
 - README.md: Minor correction
 - Result: 23/23 confirmed
 
+#### Session 30 — Real-time agent feed, side-by-side layout, 
+order history, SSE progress, budget suggestion display
+Files: api/routes.py, frontend/src/App.js,
+       frontend/src/components/AgentActivityFeed.js,
+       frontend/src/index.css, orchestrator/engine.py,
+       utils/cosmos_store.py
+- api/routes.py: Added GET /api/v1/catering/order/{order_id}
+  endpoint — reads single order from Cosmos by ID.
+  Added GET /api/v1/catering/progress/{session_id} SSE 
+  endpoint — streams agent progress events.
+  Modified create_catering_order to publish progress events
+  via _progress_store and inject _session_id into response.
+- orchestrator/engine.py: Added progress_callback parameter
+  to run_orchestration(). Calls progress_callback after each
+  agent handoff to publish real-time status updates.
+- frontend/src/App.js: Complete rewrite — side-by-side layout
+  (form + activity feed on left, results on right). Order
+  History tab with clickable rows loading full ResultsDashboard.
+  SSE/polling connection for real-time agent status updates.
+  Background history refresh after order completion.
+- frontend/src/components/AgentActivityFeed.js: Added
+  agentStatuses prop — drives per-agent done/running/waiting
+  status display in real time.
+- frontend/src/index.css: Added sideByGrid, leftCol, rightCol
+  CSS classes for side-by-side layout. Responsive breakpoint
+  at 900px.
+- utils/cosmos_store.py: Fixed get_recent_orders() — now uses
+  ORDER BY c._ts DESC to return genuinely most recent orders.
+  Cosmos inventory query fixed (removed unsupported 
+  enable_cross_partition_query parameter).
+- Result: 23/23 confirmed. History showing most recent orders
+  correctly. Side-by-side layout working. Agent statuses
+  updating in real time.
+
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT
 
 #### Session 1 — 2026-04-18 — What I Learned

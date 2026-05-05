@@ -119,3 +119,26 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+.sideByGrid {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.leftCol {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.rightCol {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .sideByGrid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -9,6 +9,9 @@ order. The response is a placeholder (agents are not wired yet).
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
+import asyncio
+import json as json_lib
 
 from api.auth import require_api_key
 from api.models import CateringAdaptRequest, CateringMultiOrderRequest, CateringOrderRequest, CateringRawTextOrderRequest
@@ -24,6 +27,10 @@ from utils.logger import log_event
 
 
 router = APIRouter(prefix="/api/v1")
+
+# In-memory progress store for SSE — keyed by session_id
+_progress_store: dict[str, list[str]] = {}
+_progress_events: dict[str, asyncio.Event] = {}
 
 
 def _to_raw_customer_request(order: CateringOrderRequest) -> str:
@@ -70,7 +77,28 @@ async def create_catering_order(
         },
     )
 
-    result = await run_orchestration(raw_customer_request=request.raw_customer_text)
+    import uuid as _uuid
+    session_id = str(_uuid.uuid4())
+    _progress_store[session_id] = []
+    _progress_events[session_id] = asyncio.Event()
+
+    def _publish(agent: str, status: str):
+        event = json_lib.dumps({
+            "type": "agent_update",
+            "agent": agent,
+            "status": status,
+        })
+        _progress_store.setdefault(session_id, []).append(event)
+
+    result = await run_orchestration(
+        raw_customer_request=request.raw_customer_text,
+        progress_callback=_publish,
+    )
+
+    _progress_store[session_id].append('{"type":"done"}')
+
+    # Inject session_id into response header so frontend can connect
+    response_data = result
 
     if result.header.message_type == "final_plan" and hasattr(result.payload, "model_dump"):
         order_id = str(getattr(result.payload, "event_id", "")).strip()
@@ -93,7 +121,14 @@ async def create_catering_order(
         },
     )
 
-    return result
+    from fastapi.responses import JSONResponse
+    import json as _json
+    from utils.json_schema import AgentMessage
+    
+    # Add session_id to payload for SSE connection
+    result_dict = result.model_dump(mode="json")
+    result_dict["_session_id"] = session_id
+    return JSONResponse(content=result_dict)
 
 
 @router.get(
@@ -118,6 +153,65 @@ async def list_catering_orders(
         details={"order_count": len(orders)},
     )
     return {"orders": orders}
+
+
+@router.get(
+    "/catering/order/{order_id}",
+    tags=["catering"],
+)
+async def get_catering_order(
+    order_id: str,
+    _: None = Depends(require_api_key),
+) -> dict:
+    """Read a single catering order from Cosmos DB by order_id."""
+    try:
+        doc = await read_order_document(order_id=order_id)
+        fp = doc.get("final_plan") if isinstance(doc, dict) else None
+        if fp is None:
+            return {"payload": None}
+        return {"payload": fp}
+    except Exception as exc:
+        log_event(
+            agent_id="api",
+            action="get_catering_order",
+            status="error",
+            details={"order_id": order_id, "error": str(exc)},
+        )
+        return {"payload": None}
+
+
+@router.get(
+    "/catering/progress/{session_id}",
+    tags=["catering"],
+)
+async def stream_progress(
+    session_id: str,
+    _: None = Depends(require_api_key),
+):
+    """SSE endpoint — streams agent progress events for a session."""
+    async def event_generator():
+        sent = 0
+        timeout = 180  # max 3 minutes
+        elapsed = 0
+        while elapsed < timeout:
+            events = _progress_store.get(session_id, [])
+            while sent < len(events):
+                yield f"data: {events[sent]}\n\n"
+                sent += 1
+                if events[sent - 1] == '{"type":"done"}':
+                    return
+            await asyncio.sleep(0.5)
+            elapsed += 0.5
+        yield 'data: {"type":"timeout"}\n\n'
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.post(

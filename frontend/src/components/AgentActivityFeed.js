@@ -41,6 +41,7 @@ export default function AgentActivityFeed({
   isRunning,
   lastProcessingTimeSeconds,
   negotiationRoundsUsed,
+  agentStatuses = {},
 }) {
   const [activeIndex, setActiveIndex] = useState(-1);
   const [showNegotiation, setShowNegotiation] = useState(false);
@@ -104,8 +105,16 @@ export default function AgentActivityFeed({
       <ol className="stepList">
         {steps.map((step, idx) => {
           const isCompletedRun = !isRunning && lastProcessingTimeSeconds != null;
-          const isDone = isCompletedRun ? true : idx < activeIndex;
-          const isActive = isRunning && idx === activeIndex;
+          const hasAgentStatuses = Object.keys(agentStatuses).length > 0;
+
+          const isDoneFromSse = agentStatuses[step.key] === 'done';
+          const hasEarlierDoneFromSse = steps
+            .slice(0, idx)
+            .some((s) => agentStatuses[s.key] === 'done');
+          const isActiveFromSse = isRunning && !isDoneFromSse && hasEarlierDoneFromSse;
+
+          const isDone = hasAgentStatuses ? isDoneFromSse : (isCompletedRun ? true : idx < activeIndex);
+          const isActive = hasAgentStatuses ? isActiveFromSse : (isRunning && idx === activeIndex);
           const isPending = !isDone && !isActive;
 
           return (
@@ -113,7 +122,7 @@ export default function AgentActivityFeed({
               <div className="stepTitle">{step.title}</div>
               <div className="stepStatus">
                 {isDone && <span className="statusDone">✅ Done</span>}
-                {isActive && <span className="statusRunning">{step.runningText}</span>}
+                {isActive && <span className="statusRunning">{hasAgentStatuses ? 'running...' : step.runningText}</span>}
                 {isPending && <span className="statusPending">waiting...</span>}
               </div>
             </li>

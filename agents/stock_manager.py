@@ -24,6 +24,7 @@ from utils.json_schema import (
     PurchaseItem,
     StockItem,
 )
+from utils.cosmos_store import query_inventory_from_cosmos
 from utils.logger import log_event
 from utils.azure_client import create_async_azure_openai_client, get_azure_openai_deployment_name
 
@@ -427,7 +428,30 @@ async def run_stock_manager(
         logistics_plan: LogisticsPlan = logistics_plan_message.payload
         cost_report: CostReport = cost_report_message.payload
 
-        inventory_rows = _load_inventory()
+        # Try Cosmos DB inventory first, fall back to mock file
+        cosmos_inventory = await query_inventory_from_cosmos()
+        if cosmos_inventory:
+            inventory_rows = cosmos_inventory
+            log_event(
+                agent_id=AGENT_ID,
+                action="load_inventory",
+                status="success",
+                details={
+                    "source": "cosmos_db",
+                    "item_count": len(inventory_rows),
+                },
+            )
+        else:
+            inventory_rows = _load_inventory()
+            log_event(
+                agent_id=AGENT_ID,
+                action="load_inventory",
+                status="success",
+                details={
+                    "source": "mock_file",
+                    "item_count": len(inventory_rows),
+                },
+            )
         inv_index = _build_inventory_index(inventory_rows)
         suppliers = _load_suppliers()
 

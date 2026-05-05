@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re as _re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -339,6 +340,17 @@ async def _gpt_interpret_notes(
         return None
 
 
+_TMINUS_PATTERNS = [
+    (_re.compile(r'^T-48h:', _re.IGNORECASE), timedelta(hours=48)),
+    (_re.compile(r'^T-24h:', _re.IGNORECASE), timedelta(hours=24)),
+    (_re.compile(r'^T-12h:', _re.IGNORECASE), timedelta(hours=12)),
+    (_re.compile(r'^T-6h:',  _re.IGNORECASE), timedelta(hours=6)),
+    (_re.compile(r'^T-2h:',  _re.IGNORECASE), timedelta(hours=2)),
+    (_re.compile(r'^T-15min:', _re.IGNORECASE), timedelta(minutes=15)),
+    (_re.compile(r'^T-0:',   _re.IGNORECASE), timedelta(0)),
+]
+
+
 async def run_logistics(
     *,
     cost_report_message: AgentMessage,
@@ -386,14 +398,21 @@ async def run_logistics(
             ai_reasoning = json.dumps(gpt_result)
             staffing_notes = gpt_result.get("staffing_notes") or None
             for task_desc in gpt_result.get("extra_timeline_tasks", []):
-                if task_desc and str(task_desc).strip():
-                    timeline.append(
-                        TimelineTask(
-                            time=_fmt(event_dt),
-                            description=str(task_desc).strip(),
-                            owner="logistics",
-                        )
+                if not task_desc or not str(task_desc).strip():
+                    continue
+                desc = str(task_desc).strip()
+                task_dt = event_dt  # default fallback
+                for pattern, offset in _TMINUS_PATTERNS:
+                    if pattern.match(desc):
+                        task_dt = event_dt - offset
+                        break
+                timeline.append(
+                    TimelineTask(
+                        time=_fmt(task_dt),
+                        description=desc,
+                        owner="logistics",
                     )
+                )
             if "early_setup" in gpt_result.get("setup_flags", []):
                 prep_start_dt = min(prep_start_dt, event_dt - timedelta(hours=14))
                 prep_start_time = _fmt(prep_start_dt)

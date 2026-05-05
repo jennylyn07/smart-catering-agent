@@ -661,6 +661,30 @@ File: utils/cosmos_store.py
 - 22/23 correctness suite — Edge Case 6 passes functionally, 
   marginal on timing under free tier latency only
 
+#### Session 28 — Logistics T-minus timestamps + Cosmos DB inventory
+Files: agents/logistics.py, utils/cosmos_store.py, 
+       agents/stock_manager.py, scripts/seed_inventory.py
+- agents/logistics.py: Added _TMINUS_PATTERNS module-level 
+  constant and re import. Extra timeline tasks from GPT now 
+  get correct datetime offset based on T-minus prefix 
+  (T-48h, T-24h, T-12h, T-6h, T-2h, T-15min, T-0). 
+  Previously all extra tasks were assigned event_dt 
+  regardless of their T-minus label.
+- utils/cosmos_store.py: Added get_inventory_container_name() 
+  returning "catering-inventory". Added 
+  query_inventory_from_cosmos() — queries Cosmos 
+  catering-inventory container, asyncio.wait_for(timeout=3.0), 
+  graceful empty list fallback on any failure.
+- agents/stock_manager.py: run_stock_manager() now tries 
+  Cosmos DB inventory first. Falls back to mock file 
+  (data/mock_inventory.json) if Cosmos returns empty or fails. 
+  Logs source used (cosmos_db or mock_file).
+- scripts/seed_inventory.py: New script to seed 
+  catering-inventory Cosmos container from mock_inventory.json. 
+  Creates container if not exists, upserts 33 inventory items.
+- Result: 23/23 confirmed. Edge Case 6 at 21.67s. 
+  Inventory confirmed loading from cosmos_db.
+
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT
 
 #### Session 1 — 2026-04-18 — What I Learned

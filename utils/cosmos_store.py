@@ -31,6 +31,12 @@ def get_container_name() -> str:
     return value.strip() if value and value.strip() else "catering-orders"
 
 
+def get_inventory_container_name() -> str:
+    """Return the Cosmos DB container name for inventory."""
+    value = os.getenv("COSMOS_INVENTORY_CONTAINER")
+    return value.strip() if value and value.strip() else "catering-inventory"
+
+
 def create_orders_container_client() -> Any:
     """Create an async Cosmos container client for the orders container."""
 
@@ -248,5 +254,57 @@ async def query_past_orders(
             action="query_past_orders",
             status="error",
             details={"error": str(exc), "error_type": type(exc).__name__},
+        )
+        return []
+
+
+async def query_inventory_from_cosmos() -> list:
+    """Query all inventory items from Cosmos DB catering-inventory container.
+    
+    Returns list of {ingredient, quantity, unit} dicts.
+    Gracefully returns empty list on any failure.
+    
+    WARNING: This function makes a network call to Azure Cosmos DB.
+    """
+    try:
+        client = create_cosmos_client()
+        try:
+            database = client.get_database_client(get_database_name())
+            container = database.get_container_client(
+                get_inventory_container_name()
+            )
+
+            async def _fetch():
+                query = "SELECT c.ingredient, c.quantity, c.unit FROM c"
+                result = []
+                async for item in container.query_items(
+                    query=query,
+                ):
+                    ingredient = item.get("ingredient")
+                    quantity = item.get("quantity")
+                    unit = item.get("unit")
+                    if ingredient and quantity is not None and unit:
+                        result.append({
+                            "ingredient": ingredient,
+                            "quantity": quantity,
+                            "unit": unit,
+                        })
+                return result
+
+            items = await asyncio.wait_for(_fetch(), timeout=3.0)
+        finally:
+            await client.close()
+
+        return items
+
+    except Exception as exc:
+        log_event(
+            agent_id="cosmos_store",
+            action="query_inventory",
+            status="error",
+            details={
+                "error": str(exc),
+                "error_type": type(exc).__name__,
+            },
         )
         return []

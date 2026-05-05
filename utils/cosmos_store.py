@@ -258,6 +258,59 @@ async def query_past_orders(
         return []
 
 
+async def get_recent_orders(*, limit: int = 20) -> list:
+    """Fetch recent orders from Cosmos DB for history display.
+    
+    Returns list of lightweight order summary dicts.
+    Gracefully returns empty list on any failure.
+    """
+    try:
+        client = create_cosmos_client()
+        try:
+            database = client.get_database_client(get_database_name())
+            container = database.get_container_client(get_container_name())
+
+            async def _fetch():
+                query = (
+                    "SELECT c.id, c.final_plan FROM c "
+                    "ORDER BY c._ts DESC "
+                    f"OFFSET 0 LIMIT {limit}"
+                )
+                result = []
+                async for item in container.query_items(query=query):
+                    fp = item.get("final_plan") or {}
+                    event_spec = fp.get("event_specification") or {}
+                    cost = fp.get("cost_report") or {}
+                    result.append({
+                        "order_id": item.get("id"),
+                        "event_name": event_spec.get("event_name") or "Unnamed Event",
+                        "event_date": event_spec.get("event_date") or "",
+                        "guest_count": event_spec.get("guest_count") or 0,
+                        "budget_php": event_spec.get("budget_php") or 0,
+                        "total_cost_php": cost.get("total_cost_php") or 0,
+                        "within_budget": cost.get("within_budget") 
+                                        or cost.get("is_within_budget"),
+                        "cuisine_preferences": event_spec.get(
+                            "cuisine_preferences") or [],
+                    })
+                return result
+
+            items = await asyncio.wait_for(_fetch(), timeout=5.0)
+        finally:
+            await client.close()
+
+        return items
+
+    except Exception as exc:
+        log_event(
+            agent_id="cosmos_store",
+            action="get_recent_orders",
+            status="error",
+            details={"error": str(exc), "error_type": type(exc).__name__},
+        )
+        return []
+
+
 async def query_inventory_from_cosmos() -> list:
     """Query all inventory items from Cosmos DB catering-inventory container.
     

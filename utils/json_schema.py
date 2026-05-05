@@ -133,6 +133,7 @@ class CostReport(BaseModel):
     recommended_alternatives: List[AlternativeRecommendation] = Field(default_factory=list)
     line_items: List[CostLineItem] = Field(default_factory=list)
     notes: Optional[str] = None
+    suggested_budget_php: Optional[float] = None
 
 
 class DeliveryStop(BaseModel):

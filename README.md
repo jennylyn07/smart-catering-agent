@@ -384,5 +384,3 @@ ASEAN Edition*
 
 ---
 
-After creating the file, paste the first 20 lines 
-back so I can verify. Do not commit yet.

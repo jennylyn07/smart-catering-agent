@@ -685,6 +685,30 @@ Files: agents/logistics.py, utils/cosmos_store.py,
 - Result: 23/23 confirmed. Edge Case 6 at 21.67s. 
   Inventory confirmed loading from cosmos_db.
 
+#### Session 29 — Order history, budget suggestion, UI improvements
+Files: utils/cosmos_store.py, api/routes.py, frontend/src/App.js,
+       frontend/src/components/ResultsDashboard.js,
+       agents/accountant.py, utils/json_schema.py, README.md
+- utils/cosmos_store.py: Added get_recent_orders(limit=20) —
+  queries catering-orders container, returns lightweight order
+  summary list, asyncio.wait_for(timeout=5.0), graceful empty
+  list fallback
+- api/routes.py: Added GET /api/v1/catering/orders endpoint —
+  returns recent orders for history display
+- frontend/src/App.js: Added Order History tab — History button
+  in header, fetches past orders from /api/v1/catering/orders,
+  displays in table with event name, date, guests, budget,
+  total cost, budget status. New Order button returns to form.
+- agents/accountant.py + utils/json_schema.py: Added
+  suggested_budget_php field to CostReport — calculated
+  deterministically as round(total_cost * 1.05 / 1000) * 1000
+  only when over budget. Null when within budget.
+- frontend/src/components/ResultsDashboard.js: Budget suggestion
+  displayed in negotiation panel when over budget —
+  "Suggested realistic budget: ₱XX,000" in blue.
+- README.md: Minor correction
+- Result: 23/23 confirmed
+
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT
 
 #### Session 1 — 2026-04-18 — What I Learned

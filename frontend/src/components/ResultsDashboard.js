@@ -131,6 +131,7 @@ export default function ResultsDashboard({ finalPlan }) {
 
   const flaggedItems = finalPlan?.cost_report?.flagged_items || [];
   const costNotes = finalPlan?.cost_report?.notes || '';
+  const suggestedBudget = finalPlan?.cost_report?.suggested_budget_php || null;
 
   const staffingNotes = finalPlan?.logistics_plan?.staffing_notes || '';
 
@@ -302,6 +303,20 @@ export default function ResultsDashboard({ finalPlan }) {
                 )}
                 {costNotes && (
                   <div className="negotiationNotes">{costNotes}</div>
+                )}
+                {suggestedBudget && (
+                  <div style={{
+                    marginTop: '12px',
+                    padding: '10px 14px',
+                    background: 'var(--neu-bg)',
+                    boxShadow: 'var(--shadow-neu-out)',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    color: 'var(--blue)',
+                  }}>
+                    💡 Suggested realistic budget: ₱{Number(suggestedBudget).toLocaleString()}
+                  </div>
                 )}
               </>
             ) : (

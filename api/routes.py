@@ -13,7 +13,12 @@ from fastapi import APIRouter, Depends
 from api.auth import require_api_key
 from api.models import CateringAdaptRequest, CateringMultiOrderRequest, CateringOrderRequest, CateringRawTextOrderRequest
 from orchestrator.engine import adapt_from_existing_plan, run_orchestration
-from utils.cosmos_store import append_adaptation_event, persist_final_plan, read_order_document
+from utils.cosmos_store import (
+    append_adaptation_event, 
+    persist_final_plan, 
+    read_order_document,
+    get_recent_orders,
+)
 from utils.json_schema import AgentMessage
 from utils.logger import log_event
 
@@ -89,6 +94,30 @@ async def create_catering_order(
     )
 
     return result
+
+
+@router.get(
+    "/catering/orders",
+    tags=["catering"],
+)
+async def list_catering_orders(
+    _: None = Depends(require_api_key),
+) -> dict:
+    """Return recent catering orders from Cosmos DB for history display."""
+    log_event(
+        agent_id="api",
+        action="list_catering_orders",
+        status="received",
+        details={},
+    )
+    orders = await get_recent_orders(limit=20)
+    log_event(
+        agent_id="api",
+        action="list_catering_orders",
+        status="completed",
+        details={"order_count": len(orders)},
+    )
+    return {"orders": orders}
 
 
 @router.post(

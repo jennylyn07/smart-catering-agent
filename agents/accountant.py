@@ -665,6 +665,11 @@ async def run_accountant(
                 event_spec=event_spec,
                 past_context=past_context,
             ),
+            suggested_budget_php=(
+                round(total_cost * 1.05 / 1000) * 1000
+                if is_within_budget is False and over_budget_by > 0
+                else None
+            ),
         )
 
         msg = _wrap_message(

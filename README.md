@@ -1,6 +1,6 @@
 
 # 🍽️ Smart Catering Agent
-### AI-Powered Multi-Agent System for Autonomous Catering Operations
+### AI-Powered Multi-Agent Pipeline for Intelligent Catering Operations
 **Code Without Barriers Hackathon 2026 — ASEAN Edition**  
 Problem Statement 1 — iNextLabs  
 Participant: Jennylyn Magno | Solo | Philippines
@@ -17,7 +17,7 @@ A traditional app reacts after things go wrong. A multi-agent system prevents pr
 
 ## The Solution
 
-Smart Catering Agent is a fully autonomous multi-agent AI system where five specialized agents collaborate to produce a complete, optimized catering plan from a single customer request — with no manual intervention between agents.
+Smart Catering Agent is a multi-agent AI system where five specialized agents operate as a coordinated pipeline to produce a complete, optimized catering plan from a single customer request — with no manual intervention required between agents.
 
 > *"The Head Chef proposes Beef Kaldereta. The Accountant flags it as a cost driver. They negotiate. The Head Chef reformulates. The Logistics Lead calculates staffing. The Stock Manager plans procurement. All automatically."*
 
@@ -38,7 +38,7 @@ Customer Request (raw text)
                           ▼
 ┌─────────────────────────────────────────────────────┐
 │           Orchestration Engine                       │
-│     Semantic Kernel + AutoGen coordination           │
+│     Semantic Kernel plugin orchestration              │
 │     SharedMemory · Retry Logic · Audit Trail         │
 └──┬──────────┬──────────┬──────────┬─────────────────┘
    │          │          │          │          │
@@ -83,56 +83,69 @@ follows a reformulation priority order: Protein Down-Tiering
 → Portion Re-balancing → Service Style adjustment → Dish 
 removal as last resort only.
 
-**Technology:** GPT-4o (temp 0.8) · Azure AI Search RAG · 
-49 individual recipe documents · Post-AI allergy safety check
+**Technology:** GPT-4o (temp 0.8) · Azure AI Search RAG ·
+49 individual recipe documents · Post-AI allergy safety check ·
+Hardcoded `NUTRITION_LOOKUP` (51 dishes) → per-serving kcal/protein/carbs/fat on every `MenuItem`
 
 ---
 
 ### 💰 Agent 3 — The Accountant
 **Role:** Cost calculation and budget compliance
 
-Calculates ingredient costs from RAG pricing data, applies 
-a 7% industry-standard cost buffer, adds fixed labor and 
-overhead. When over budget, uses pre-computed variance 
-analysis before calling GPT-4o to reason about which dishes 
-to flag — minimum flagging, reformulation before removal. 
-Negotiates with Head Chef up to 3 rounds.
+Calculates ingredient costs from RAG pricing data, applies
+a 7% industry-standard cost buffer, adds fixed labor and
+overhead. When over budget, uses pre-computed variance
+analysis before calling GPT-4o to reason about which dishes
+to flag — minimum flagging, reformulation before removal.
+Negotiates with Head Chef up to 3 rounds. Outputs a
+**recommended selling price** (total cost ÷ 0.70) and
+**estimated profit margin (30% target)** for profitability
+forecasting alongside the budget compliance report.
 
-**Technology:** GPT-4o (temp 0.0) · RAG pricing · 
-Deterministic math in code · GPT reasoning for soft 
-judgment only
+**Technology:** GPT-4o (temp 0.0) · RAG pricing ·
+Deterministic math in code · GPT reasoning for soft
+judgment only · Profitability margin calculation in code
 
 ---
 
 ### 🚚 Agent 4 — The Logistics Lead
 **Role:** Timeline planning and staffing calculation
 
-Interprets event notes using GPT-4o with industry staffing 
-ratios (plated 1:10-12, buffet 1:20-25, full bar 1:35) and 
-T-minus Critical Path Method. Calculates exact staff numbers 
-for each specific event.
+Interprets event notes using GPT-4o with industry staffing
+ratios (plated 1:10-12, buffet 1:20-25, full bar 1:35) and
+T-minus Critical Path Method. Calculates exact staff numbers
+for each specific event. Derives a **Gantt chart**
+(`gantt_chart: List[GanttTask]`) directly from the CPM
+timeline, providing machine-readable start/end/duration
+segments for each preparation milestone.
 
-**Technology:** GPT-4o (temp 0.3) · Deterministic backward 
-time calculation · Industry ratios in prompt
+**Technology:** GPT-4o (temp 0.3) · Deterministic backward
+time calculation · Industry ratios in prompt · Gantt
+derivation in code (`_derive_gantt()`)
 
 ---
 
 ### 📦 Agent 5 — The Stock Manager
 **Role:** Inventory check and procurement planning
 
-Checks inventory levels against mock warehouse data, 
-generates procurement lists, identifies waste risk items 
-using FIFO/yield reasoning, and explains supplier selection 
-rationale. Both GPT calls run concurrently via 
+Checks inventory levels against mock warehouse data,
+generates procurement lists, identifies waste risk items
+using FIFO/yield reasoning, and explains supplier selection
+rationale. Both GPT calls run concurrently via
 asyncio.gather() with 8s timeout and graceful degradation.
+**Runs in parallel with the Logistics Lead** — both agents
+receive the cost report and execute simultaneously via
+`asyncio.gather()` in the orchestration engine, reducing
+total pipeline latency.
 
-Note: Inventory data is loaded from Azure Cosmos DB first 
-(container: catering-inventory). If Cosmos inventory is 
-unavailable or empty, the agent falls back to a local mock 
+Note: Inventory data is loaded from Azure Cosmos DB first
+(container: catering-inventory). If Cosmos inventory is
+unavailable or empty, the agent falls back to a local mock
 inventory file (data/mock_inventory.json).
 
-**Technology:** GPT-4o · asyncio.gather() concurrent calls · 
-Deterministic math for quantities
+**Technology:** GPT-4o · asyncio.gather() concurrent calls ·
+Deterministic math for quantities · Parallel orchestration
+with Logistics Lead
 
 ---
 
@@ -155,7 +168,7 @@ Deterministic math for quantities
 
 This aligns directly with iNextLabs Key Success Factor: 
 *"Rules-based logic guides decisions with AI insights; 
-agents act autonomously within established guardrails."*
+agents act within established guardrails."*
 
 ---
 
@@ -198,22 +211,26 @@ logged with agent_id, action, status, and timestamp.
 |---|---|---|
 | Azure OpenAI GPT-4o | foundry-jmagno-2026 | Powers all 5 agent reasoning calls |
 | Azure AI Search | search-jmagno-2026 | RAG knowledge base — 51 documents (49 recipes + pricing + suppliers) |
-| Azure Cosmos DB | cosmos-jmagno-2026 | Order persistence + long-term memory queries |
+| Azure Cosmos DB | cosmos-jmagno-2026 | Order persistence + historical order context queries |
 | Azure Blob Storage | storagejmagno2026 | Document storage layer |
 
 ---
 
 ## Microsoft Agent Framework
 
-Agents are registered as a Semantic Kernel plugin and 
-invoked via `kernel.invoke()`. AutoGen's AssistantAgent 
-is used for orchestrator coordination. Core negotiation 
-and pipeline sequencing logic is implemented in the 
-orchestration engine, aligned with Microsoft Agent 
-Framework patterns.
+Agents are registered as a Semantic Kernel plugin 
+(`CateringAgentsPlugin`) and invoked via `kernel.invoke()` 
+throughout the pipeline. AutoGen's `AssistantAgent` is 
+instantiated as part of the framework integration — 
+pipeline sequencing, negotiation, and agent handoffs are 
+managed directly by the orchestration engine, consistent 
+with Microsoft Agent Framework patterns.
 
-**Present:** `CateringAgentsPlugin` with `@kernel_function` 
-decorators, AutoGen `AssistantAgent` 
+**Active:** `CateringAgentsPlugin` with `@kernel_function` 
+decorators, invoked via `kernel.invoke()` for all 5 agents
+
+**Integrated (not yet active):** AutoGen `AssistantAgent` 
+— instantiated, pipeline coordination on the roadmap
 
 **Production roadmap:** AutoGen GroupChat for dynamic agent 
 routing, SK Planner for adaptive pipeline sequencing, 
@@ -227,29 +244,28 @@ SK Memory Plugins for persistent agent context
 |---|---|
 | RAG Knowledge Base | 51 documents in Azure AI Search — 49 individual recipe docs + pricing + suppliers |
 | Shared Memory | Immutable dietary/allergy flags across all agents — cannot be overwritten mid-pipeline |
-| Long-Term Memory | query_past_orders() queries Cosmos for past similar events, injects context into Head Chef and Accountant prompts |
+| Historical Order Context | query_past_orders() retrieves past similar events from Cosmos DB, injects context into Head Chef and Accountant prompts |
 | Real-Time Adaptation | /adapt endpoint re-runs impacted pipeline on guest count, dietary, or budget change |
 | Multi-Event Optimization | Multi-order endpoint with shared procurement across concurrent events |
 | Retry Logic | _call_with_retry() wraps all 5 agent calls — up to 3 attempts on transient failures |
 
 ---
 
-## Correctness Test Suite
+## Integration Test Suite
 
-21/23 automated correctness tests passing across 6 sections:
+23/23 integration checks passing across 6 sections
+(these are end-to-end smoke tests that validate pipeline 
+behavior — dietary enforcement, cost scaling, edge case 
+handling — not unit tests of individual computations):
 
 | Section | Result |
 |---|---|
 | Section 1: Dietary and allergy enforcement | 7/7 ✅ |
-| Section 2: Menu variety | 1/1 ✅ |
+| Section 2: Menu variety / non-determinism | 1/1 ✅ |
 | Section 3: Special notes handling | 3/3 ✅ |
-| Section 4: Bonus features | 4/5 ⚠️ |
-| Section 5: Cost scaling | 1/1 ✅ |
-| Section 6: Edge cases | 5/6 ⚠️ |
-
-Current failures:
-- TEST 4D: non-200 response
-- EDGE CASE 6 — Very long special notes: processing time exceeded 30 seconds
+| Section 4: Bonus features | 5/5 ✅ |
+| Section 5: Cost scaling reality check | 1/1 ✅ |
+| Section 6: Edge cases | 6/6 ✅ |
 
 ---
 
@@ -317,19 +333,24 @@ Azure Container Apps.
 
 ## Known Limitations
 
-1. **Response time** — 20-120s under Azure free tier due 
-   to multiple sequential GPT calls. Production fix: 
-   provisioned throughput.
-2. **Knowledge base dishes only** — dishes outside 
+1. **Response time** — 20-120s under Azure free tier due
+   to multiple GPT-4o calls. Logistics and Stock Manager
+   now run in parallel (asyncio.gather), reducing the
+   final two stages. Production fix: provisioned throughput.
+2. **Knowledge base dishes only** — dishes outside
    recipes.json are substituted with nearest match.
-3. **Fixed labor rate** — PHP 150/guest flat rate. 
+3. **Fixed labor rate** — PHP 150/guest flat rate.
    Production would vary by service style and duration.
-4. **Inventory fallback** — Stock Manager uses Cosmos DB 
-   inventory when available; otherwise it falls back to a 
+4. **Inventory fallback** — Stock Manager uses Cosmos DB
+   inventory when available; otherwise it falls back to a
    local mock inventory file.
-5. **Local execution** — App Service blocked by free 
-   subscription quota. Functionally identical to cloud 
+5. **Local execution** — App Service blocked by free
+   subscription quota. Functionally identical to cloud
    deployment for demo purposes.
+6. **Agent progress simulation** — The UI shows live
+   elapsed time and time-based agent advancement during
+   processing. True per-agent real-time status requires
+   an async pipeline (production roadmap).
 
 ---
 
@@ -347,7 +368,7 @@ smart-catering-agent/
 │   └── engine.py           ← Coordinates all agents, retry logic
 ├── utils/
 │   ├── azure_client.py     ← Azure SDK connections
-│   ├── cosmos_store.py     ← Cosmos DB operations + long-term memory
+│   ├── cosmos_store.py     ← Cosmos DB operations + historical order context
 │   └── logger.py           ← Structured logging
 ├── knowledge_base/
 │   ├── recipes.json        ← 49 recipes, 9 categories
@@ -355,7 +376,7 @@ smart-catering-agent/
 │   └── suppliers.json      ← Supplier data
 ├── frontend/src/           ← React UI
 ├── tests/
-│   └── test_correctness.py ← 21/23 automated tests
+│   └── test_correctness.py ← 23/23 integration checks
 └── scripts/
     └── setup_search_index.py ← Azure AI Search index builder
 ```

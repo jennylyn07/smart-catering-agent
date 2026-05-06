@@ -68,8 +68,19 @@ class EventSpecification(BaseModel):
     notes: Optional[str] = None
 
 
+class NutritionInfo(BaseModel):
+    """Per-serving nutritional estimates for a menu item."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    calories: int = Field(ge=0, description="Estimated kcal per serving")
+    protein_g: float = Field(ge=0, description="Protein in grams per serving")
+    carbs_g: float = Field(ge=0, description="Carbohydrates in grams per serving")
+    fat_g: float = Field(ge=0, description="Fat in grams per serving")
+
+
 class MenuItem(BaseModel):
-    """A single dish with portioning information."""
+    """A single dish with portioning and nutritional information."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -77,6 +88,7 @@ class MenuItem(BaseModel):
     category: Optional[str] = None
     servings: int = Field(ge=1)
     ingredients: List[str] = Field(default_factory=list)
+    nutrition: Optional[NutritionInfo] = Field(default=None, description="Per-serving nutritional estimates")
 
 
 class MenuPlan(BaseModel):
@@ -134,6 +146,18 @@ class CostReport(BaseModel):
     line_items: List[CostLineItem] = Field(default_factory=list)
     notes: Optional[str] = None
     suggested_budget_php: Optional[float] = None
+    # Profitability forecast (Slide 10/11: Accountant "optimizes profit margins")
+    recommended_selling_price_php: Optional[float] = Field(
+        default=None,
+        ge=0,
+        description="Recommended client-facing price at 30% target margin (total_cost / 0.70)",
+    )
+    estimated_margin_percent: float = Field(
+        default=30.0,
+        ge=0,
+        le=100,
+        description="Target catering business margin (industry standard: 30%)",
+    )
 
 
 class DeliveryStop(BaseModel):
@@ -154,6 +178,18 @@ class TimelineTask(BaseModel):
     owner: str
 
 
+class GanttTask(BaseModel):
+    """A single Gantt chart row derived from the logistics timeline."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    task: str
+    owner: str
+    start_time: str
+    end_time: str
+    duration_minutes: int = Field(ge=0, description="Task duration in minutes")
+
+
 class DeliveryWindow(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -171,6 +207,10 @@ class LogisticsPlan(BaseModel):
     prep_start_time: str
     delivery_time: str
     timeline: List[TimelineTask] = Field(default_factory=list)
+    gantt_chart: List[GanttTask] = Field(
+        default_factory=list,
+        description="Gantt chart representation of the timeline for resource allocation visualization",
+    )
     critical_path_items: List[str] = Field(default_factory=list)
     delivery_windows: List[DeliveryWindow] = Field(default_factory=list)
     buffer_time_minutes: int = Field(default=30, ge=1)

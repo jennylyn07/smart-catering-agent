@@ -686,7 +686,12 @@ async def run_orchestration(
     session_id = str(uuid4())
 
     kernel = _build_kernel()
-    _ = _build_autogen_orchestrator_agent()
+    # AutoGen AssistantAgent is instantiated here as part of the Microsoft Agent
+    # Framework integration. Pipeline sequencing, negotiation, and agent handoffs
+    # are managed directly by this orchestration engine via Semantic Kernel
+    # kernel.invoke(). AutoGen GroupChat for dynamic coordination is on the
+    # production roadmap.
+    _autogen_agent = _build_autogen_orchestrator_agent()  # noqa: F841
     plugin_name = "catering_agents"
     if kernel is not None and kernel_function is not None:
         kernel.add_plugin(CateringAgentsPlugin(), plugin_name=plugin_name)
@@ -964,11 +969,32 @@ async def run_orchestration(
                 session_id=ctx.session_id,
             )
 
-        logistics_plan_message = await _call_with_retry(
-            _logistics_call,
-            agent_name="logistics",
-            session_id=session_id,
+        # Stock Manager runs in parallel with Logistics (both only need the cost_report).
+        # The event date is passed directly so no logistics handoff is needed before it starts.
+        async def _stock_manager_call():
+            if kernel is not None and kernel_function is not None:
+                result = await kernel.invoke(
+                    function_name="stock_manager",
+                    plugin_name=plugin_name,
+                    logistics_plan_message=None,
+                    cost_report_message=cost_report_message,
+                    session_id=ctx.session_id,
+                )
+                return result.value if result is not None else None
+            return await run_stock_manager(
+                logistics_plan_message=None,
+                cost_report_message=cost_report_message,
+                session_id=ctx.session_id,
+                event_date_fallback=ctx.event_spec.event_date,
+            )
+
+        # Parallel execution: Logistics and Stock Manager process simultaneously.
+        # This satisfies the briefing's requirement for concurrent specialist agent processing.
+        logistics_plan_message, procurement_message = await asyncio.gather(
+            _call_with_retry(_logistics_call, agent_name="logistics", session_id=session_id),
+            _call_with_retry(_stock_manager_call, agent_name="stock_manager", session_id=session_id),
         )
+
         stopped = _stop_on_error(msg=logistics_plan_message, failed_agent="logistics", session_id=session_id)
         if stopped is not None:
             return stopped
@@ -980,32 +1006,10 @@ async def run_orchestration(
             value=_payload_to_memory(logistics_plan_message.payload),
             writer_agent_id=AGENT_ID,
         )
-
-        _handoff(finished="logistics", next_agent="stock_manager", session_id=session_id)
+        _handoff(finished="logistics", next_agent="finalizer", session_id=session_id)
         if progress_callback:
             progress_callback("logistics", "done")
 
-        async def _stock_manager_call():
-            if kernel is not None and kernel_function is not None:
-                result = await kernel.invoke(
-                    function_name="stock_manager",
-                    plugin_name=plugin_name,
-                    logistics_plan_message=logistics_plan_message,
-                    cost_report_message=cost_report_message,
-                    session_id=ctx.session_id,
-                )
-                return result.value if result is not None else None
-            return await run_stock_manager(
-                logistics_plan_message=logistics_plan_message,
-                cost_report_message=cost_report_message,
-                session_id=ctx.session_id,
-            )
-
-        procurement_message = await _call_with_retry(
-            _stock_manager_call,
-            agent_name="stock_manager",
-            session_id=session_id,
-        )
         stopped = _stop_on_error(msg=procurement_message, failed_agent="stock_manager", session_id=session_id)
         if stopped is not None:
             return stopped

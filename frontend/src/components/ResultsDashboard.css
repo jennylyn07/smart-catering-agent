@@ -254,6 +254,16 @@
   box-shadow: var(--shadow-neu-in);
   padding: 4px;
 }
+.tableScrollable {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 260px;
+  background: var(--neu-bg);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-neu-in);
+  padding: 4px;
+}
 .table {
   width: 100%;
   border-collapse: collapse;

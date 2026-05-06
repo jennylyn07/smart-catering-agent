@@ -42,6 +42,22 @@
   color: var(--color-accent);
 }
 
+.statusNegotiating {
+  font-weight: 800;
+  color: #c0392b;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.stepNegotiating {
+  border-color: rgba(192, 57, 43, 0.45);
+  background: rgba(232, 96, 28, 0.06);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
+}
+
 .statusPending {
   color: rgba(26, 26, 46, 0.5);
 }
@@ -65,4 +81,9 @@
 .processingTime {
   font-size: 13px;
   color: rgba(26, 26, 46, 0.8);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }

@@ -15,6 +15,7 @@ from utils.json_schema import (
     AgentMessage,
     CostReport,
     ErrorMessage,
+    EventSpecification,
     LogisticsPlan,
     MessageHeader,
     MessageMetadata,
@@ -398,16 +399,20 @@ async def _gpt_supplier_rationale(
 
 async def run_stock_manager(
     *,
-    logistics_plan_message: AgentMessage,
+    logistics_plan_message: Optional[AgentMessage] = None,
     cost_report_message: AgentMessage,
     session_id: str,
+    event_date_fallback: Optional[str] = None,
 ) -> AgentMessage:
     """Generate a ProcurementList by comparing required ingredients to inventory and suppliers.
 
     Args:
-        logistics_plan_message: AgentMessage containing a LogisticsPlan payload.
+        logistics_plan_message: Optional AgentMessage containing a LogisticsPlan payload.
+            When None (parallel execution mode), event_date_fallback is used for timing.
         cost_report_message: AgentMessage containing a CostReport payload.
         session_id: Correlation/session identifier for the request.
+        event_date_fallback: ISO date string (YYYY-MM-DD) used for waste timing when
+            logistics_plan_message is not provided (parallel execution mode).
 
     Returns:
         An AgentMessage containing a ProcurementList payload, or an ErrorMessage on failure.
@@ -416,16 +421,18 @@ async def run_stock_manager(
         agent_id=AGENT_ID,
         action="build_procurement_list",
         status="started",
-        details={"inputs": ["logistics_plan", "cost_report"]},
+        details={"inputs": ["cost_report"] if logistics_plan_message is None else ["logistics_plan", "cost_report"]},
     )
 
     try:
-        if not isinstance(logistics_plan_message.payload, LogisticsPlan):
+        if logistics_plan_message is not None and not isinstance(logistics_plan_message.payload, LogisticsPlan):
             raise ValueError("logistics_plan_message payload must be a LogisticsPlan")
         if not isinstance(cost_report_message.payload, CostReport):
             raise ValueError("cost_report_message payload must be a CostReport")
 
-        logistics_plan: LogisticsPlan = logistics_plan_message.payload
+        logistics_plan: Optional[LogisticsPlan] = (
+            logistics_plan_message.payload if logistics_plan_message is not None else None
+        )
         cost_report: CostReport = cost_report_message.payload
 
         # Try Cosmos DB inventory first, fall back to mock file
@@ -538,7 +545,17 @@ async def run_stock_manager(
             if p.suggested_supplier and p.suggested_supplier not in preferred_suppliers:
                 preferred_suppliers.append(p.suggested_supplier)
 
-        event_date = str(logistics_plan.prep_start_time)[:10]
+        # Derive event date for waste timing.
+        # Prefer the logistics plan's prep_start_time; fall back to event_date_fallback
+        # when running in parallel mode (logistics_plan not yet available).
+        if logistics_plan is not None:
+            event_date = str(logistics_plan.prep_start_time)[:10]
+            prep_start_time_for_gpt: Any = logistics_plan.prep_start_time
+        else:
+            event_date = event_date_fallback or str(datetime.now(timezone.utc).date())
+            # Approximate 6 AM prep start when logistics plan is unavailable
+            prep_start_time_for_gpt = f"{event_date}T06:00:00+08:00"
+
         guest_count_proxy = len(cost_report.line_items)
 
         waste_minimization_notes, supplier_rationale = await asyncio.gather(
@@ -547,7 +564,7 @@ async def run_stock_manager(
                 purchase_items=purchase_items,
                 event_date=event_date,
                 guest_count=guest_count_proxy,
-                prep_start_time=logistics_plan.prep_start_time,
+                prep_start_time=prep_start_time_for_gpt,
             ),
             _gpt_supplier_rationale(
                 purchase_items=purchase_items,
@@ -584,7 +601,7 @@ async def run_stock_manager(
                 "purchase_count": len(procurement.items_to_purchase),
                 "out_of_stock_count": len(procurement.out_of_stock_alerts),
                 "total_procurement_cost_php": procurement.total_procurement_cost_php,
-                "timeline_hint": logistics_plan.prep_start_time,
+                "timeline_hint": prep_start_time_for_gpt,
                 "stock_manager_ai_reasoning": supplier_rationale,
             },
         )

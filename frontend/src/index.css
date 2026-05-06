@@ -23,6 +23,11 @@
   --container-max: 1180px;
 }
 
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   font-family: 'Avenir Next', 'Avenir', -apple-system, BlinkMacSystemFont,
@@ -37,24 +42,18 @@ body {
   box-sizing: border-box;
 }
 
-a {
-  color: inherit;
-}
-
-button {
-  font: inherit;
-}
-
-input,
-textarea,
-select {
-  font: inherit;
-}
+a { color: inherit; }
+button { font: inherit; }
+input, textarea, select { font: inherit; }
 
 .container {
   max-width: var(--container-max);
   margin: 0 auto;
-  padding: 20px;
+  padding: 12px 20px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .appHeader {
@@ -62,11 +61,12 @@ select {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 24px;
-  padding: 16px 20px;
+  margin-bottom: 12px;
+  padding: 12px 20px;
   background: var(--neu-bg);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-neu-out);
+  flex-shrink: 0;
 }
 
 .brandTitle {
@@ -96,8 +96,13 @@ select {
   border: none;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-neu-out);
-  padding: 20px;
-  min-height: 420px;
+  padding: 16px;
+}
+
+.panelScrollable {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .resultsSection {
@@ -122,23 +127,36 @@ code {
 
 .sideByGrid {
   display: grid;
-  grid-template-columns: 380px 1fr;
+  grid-template-columns: 360px 1fr;
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .leftCol {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 12px;
+  height: 100%;
+  overflow-y: auto;
+  min-width: 0;
 }
 
 .rightCol {
   min-width: 0;
+  overflow-y: auto;
+  height: 100%;
 }
 
 @media (max-width: 900px) {
   .sideByGrid {
     grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+  .leftCol, .rightCol {
+    height: auto;
+    overflow: visible;
   }
 }

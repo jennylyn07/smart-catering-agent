@@ -26,48 +26,47 @@ function App() {
     if (sseRef.current) sseRef.current.close();
     setAgentStatuses({});
 
-    // SSE via fetch polyfill since EventSource doesn't support headers
-    // Use polling approach instead
     let cancelled = false;
 
-    async function poll() {
-      while (!cancelled) {
-        try {
-          const r = await fetch(
-            `/api/v1/catering/progress/${sessionId}`,
-            {
-              headers: { 'X-API-Key': apiKey },
-              signal: AbortSignal.timeout(180000),
-            }
-          );
-          const text = await r.text();
-          const lines = text.split('\n');
+    async function stream() {
+      try {
+        const r = await fetch(
+          `/api/v1/catering/progress/${sessionId}`,
+          { headers: { 'X-API-Key': apiKey }, signal: AbortSignal.timeout(180000) }
+        );
+
+        const reader = r.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        const events = [];
+
+        // Read full stream (SSE history from the completed pipeline)
+        while (!cancelled) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               try {
                 const evt = JSON.parse(line.slice(6));
-                if (evt.type === 'agent_update') {
-                  setAgentStatuses(prev => ({
-                    ...prev,
-                    [evt.agent]: evt.status,
-                  }));
-                  if (evt.agent === 'accountant' && evt.status === 'done') {
-                    // Could be negotiating
-                  }
-                } else if (evt.type === 'done' || evt.type === 'timeout') {
-                  cancelled = true;
-                  break;
-                }
+                if (evt.type === 'agent_update') events.push(evt);
               } catch {}
             }
           }
-          break;
-        } catch {
-          break;
         }
-      }
+
+        // Replay agent updates sequentially with 400 ms gap for visual effect
+        for (const evt of events) {
+          if (cancelled) break;
+          await new Promise(resolve => setTimeout(resolve, 400));
+          setAgentStatuses(prev => ({ ...prev, [evt.agent]: evt.status }));
+        }
+      } catch {}
     }
-    poll();
+
+    stream();
     sseRef.current = { close: () => { cancelled = true; } };
   }
 
@@ -130,11 +129,7 @@ function App() {
         setFinalPlan(plan);
         setProcessingTimeSeconds(plan?.total_processing_time_seconds ?? null);
         setNegotiationRoundsUsed(plan?.negotiation_rounds_used ?? 0);
-        // Mark all agents done on completion
-        setAgentStatuses({
-          concierge: 'done', head_chef: 'done', accountant: 'done',
-          logistics: 'done', stock_manager: 'done',
-        });
+        // Agent statuses are animated by connectSSE replay — don't override here
 
         // Refresh history in background so it's ready 
         // when user clicks History
@@ -371,49 +366,77 @@ function App() {
       ) : (
         <div className="sideByGrid">
           <div className="leftCol">
-            <section className="panel" aria-label="Order Form">
-              <h2>Order Form</h2>
+            <section
+              className="panel"
+              style={{ flexShrink: 0 }}
+              aria-label="Order Form"
+            >
+              <h2 style={{ marginTop: 0, marginBottom: '12px', fontSize: '16px' }}>Order Form</h2>
               <OrderForm
                 isLoading={isLoading}
                 onSubmit={handleOrderSubmit}
               />
             </section>
-            <section className="panel" style={{ marginTop: '16px' }}
-              aria-label="Agent Activity Feed">
-              <h2>Agent Activity Feed</h2>
-              <AgentActivityFeed
-                isRunning={isLoading}
-                lastProcessingTimeSeconds={processingTimeSeconds}
-                negotiationRoundsUsed={negotiationRoundsUsed}
-                agentStatuses={agentStatuses}
-              />
-            </section>
+            {/* Agent feed in left col only after results are ready */}
+            {!isLoading && finalPlan && (
+              <section
+                className="panel"
+                style={{ flexShrink: 0 }}
+                aria-label="Agent Activity Feed"
+              >
+                <h2 style={{ marginTop: 0, marginBottom: '10px', fontSize: '16px' }}>Agent Activity Feed</h2>
+                <AgentActivityFeed
+                  isRunning={false}
+                  lastProcessingTimeSeconds={processingTimeSeconds}
+                  negotiationRoundsUsed={negotiationRoundsUsed}
+                  agentStatuses={agentStatuses}
+                />
+              </section>
+            )}
           </div>
           <div className="rightCol">
+            {/* Agent feed in right col during loading so form gets full space */}
+            {isLoading && (
+              <section
+                className="panel"
+                style={{ marginBottom: '16px' }}
+                aria-label="Agent Activity Feed"
+              >
+                <h2 style={{ marginTop: 0, marginBottom: '10px', fontSize: '16px' }}>Agent Activity Feed</h2>
+                <AgentActivityFeed
+                  isRunning={isLoading}
+                  lastProcessingTimeSeconds={processingTimeSeconds}
+                  negotiationRoundsUsed={negotiationRoundsUsed}
+                  agentStatuses={agentStatuses}
+                />
+              </section>
+            )}
             {finalPlan ? (
               <ResultsDashboard finalPlan={finalPlan} />
             ) : (
-              <div style={{
-                background: 'var(--neu-bg)',
-                borderRadius: 'var(--radius-md)',
-                boxShadow: 'var(--shadow-neu-in)',
-                padding: '48px 32px',
-                textAlign: 'center',
-                color: 'var(--neu-ink-muted)',
-                fontSize: '14px',
-                minHeight: '300px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexDirection: 'column',
-                gap: '12px',
-              }}>
-                <div style={{ fontSize: '32px' }}>🍽️</div>
-                <div style={{ fontWeight: '600' }}>
-                  Your catering plan will appear here
+              !isLoading && (
+                <div style={{
+                  background: 'var(--neu-bg)',
+                  borderRadius: 'var(--radius-md)',
+                  boxShadow: 'var(--shadow-neu-in)',
+                  padding: '48px 32px',
+                  textAlign: 'center',
+                  color: 'var(--neu-ink-muted)',
+                  fontSize: '14px',
+                  minHeight: '300px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexDirection: 'column',
+                  gap: '12px',
+                }}>
+                  <div style={{ fontSize: '32px' }}>🍽️</div>
+                  <div style={{ fontWeight: '600' }}>
+                    Your catering plan will appear here
+                  </div>
+                  <div>Fill out the form and click Generate</div>
                 </div>
-                <div>Fill out the form and click Generate</div>
-              </div>
+              )
             )}
           </div>
         </div>

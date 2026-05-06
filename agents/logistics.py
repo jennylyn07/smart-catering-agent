@@ -17,6 +17,7 @@ from utils.json_schema import (
     DeliveryWindow,
     ErrorMessage,
     EventSpecification,
+    GanttTask,
     LogisticsPlan,
     MessageHeader,
     MessageMetadata,
@@ -241,6 +242,52 @@ def _timeline_from_event(event_dt: datetime) -> list[TimelineTask]:
     return tasks
 
 
+def _derive_gantt(timeline: list[TimelineTask], event_dt: datetime) -> list[GanttTask]:
+    """Derive Gantt chart rows from a sorted logistics timeline.
+
+    Each milestone spans from its scheduled time to the next milestone's start,
+    enabling Gantt-style resource allocation visualization.
+
+    Args:
+        timeline: Sorted list of TimelineTask entries (ascending by time).
+        event_dt: Event start datetime (used to compute the service end time).
+
+    Returns:
+        A list of GanttTask entries ready for Gantt chart rendering.
+    """
+    gantt: list[GanttTask] = []
+    if not timeline:
+        return gantt
+
+    for i, task in enumerate(timeline):
+        try:
+            start = datetime.fromisoformat(task.time)
+        except ValueError:
+            continue
+
+        if i + 1 < len(timeline):
+            try:
+                end = datetime.fromisoformat(timeline[i + 1].time)
+            except ValueError:
+                end = start + timedelta(hours=1)
+        else:
+            # Last task is "Service starts" — assume a 3-hour service window
+            end = start + timedelta(hours=3)
+
+        duration_min = max(0, int((end - start).total_seconds() / 60))
+        gantt.append(
+            GanttTask(
+                task=task.description,
+                owner=task.owner,
+                start_time=_fmt(start),
+                end_time=_fmt(end),
+                duration_minutes=duration_min,
+            )
+        )
+
+    return gantt
+
+
 async def _gpt_interpret_notes(
     notes: Optional[str],
     event_spec: "EventSpecification",
@@ -451,12 +498,14 @@ async def run_logistics(
         critical_path.append("Venue access and setup")
 
         timeline.sort(key=lambda t: t.time)
+        gantt_chart = _derive_gantt(timeline, event_dt)
 
         plan = LogisticsPlan(
             event_id=cost_report.event_id,
             prep_start_time=prep_start_time,
             delivery_time=delivery_time,
             timeline=timeline,
+            gantt_chart=gantt_chart,
             critical_path_items=critical_path,
             delivery_windows=[delivery_window],
             buffer_time_minutes=buffer_minutes,

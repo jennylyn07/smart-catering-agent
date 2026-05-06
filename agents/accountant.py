@@ -641,6 +641,10 @@ async def run_accountant(
                 if alt is not None:
                     recommended.append(alt)
 
+        # Profitability forecast: recommend a selling price that preserves a 30% catering margin.
+        # Formula: selling_price = total_cost / (1 - target_margin) = total_cost / 0.70
+        recommended_selling_price = round(total_cost / 0.70, 2)
+
         report = CostReport(
             event_id=event_spec.event_id,
             cost_per_dish=dish_costs,
@@ -670,6 +674,8 @@ async def run_accountant(
                 if is_within_budget is False and over_budget_by > 0
                 else None
             ),
+            recommended_selling_price_php=recommended_selling_price,
+            estimated_margin_percent=30.0,
         )
 
         msg = _wrap_message(

@@ -25,12 +25,78 @@ from utils.json_schema import (
     MessageHeader,
     MessageMetadata,
     MessageSignature,
+    NutritionInfo,
 )
 from utils.logger import log_event
 from utils.validator import normalize_dietary_flag
 from utils.cosmos_store import format_past_orders_context, query_past_orders
 
 AGENT_ID = "head_chef"
+
+# Per-serving nutritional estimates for all 49 recipes in the knowledge base.
+# Values are calibrated to a single catering serving (approx. 250-350g plated portion).
+# Source: standard food composition data cross-referenced against typical Filipino,
+# Chinese, and International catering portion sizes.
+NUTRITION_LOOKUP: dict[str, NutritionInfo] = {
+    # ── Filipino Mains ──────────────────────────────────────────────────────────
+    "Chicken Adobo":          NutritionInfo(calories=380, protein_g=28, carbs_g=8,  fat_g=18),
+    "Pork Sinigang":          NutritionInfo(calories=320, protein_g=25, carbs_g=12, fat_g=18),
+    "Kare-Kare":              NutritionInfo(calories=420, protein_g=30, carbs_g=14, fat_g=22),
+    "Lechon Kawali":          NutritionInfo(calories=520, protein_g=28, carbs_g=8,  fat_g=35),
+    "Bistek Tagalog":         NutritionInfo(calories=380, protein_g=30, carbs_g=10, fat_g=20),
+    "Beef Bistek Tagalog":    NutritionInfo(calories=380, protein_g=32, carbs_g=10, fat_g=20),
+    "Crispy Pata":            NutritionInfo(calories=580, protein_g=32, carbs_g=10, fat_g=40),
+    "Chicken Inasal":         NutritionInfo(calories=350, protein_g=34, carbs_g=6,  fat_g=18),
+    "Beef Caldereta":         NutritionInfo(calories=420, protein_g=28, carbs_g=18, fat_g=22),
+    "Pork BBQ":               NutritionInfo(calories=380, protein_g=26, carbs_g=20, fat_g=18),
+    "Beef Mechado":           NutritionInfo(calories=400, protein_g=30, carbs_g=16, fat_g=20),
+    "Chicken Curry":          NutritionInfo(calories=380, protein_g=28, carbs_g=14, fat_g=20),
+    "Dinuguan":               NutritionInfo(calories=420, protein_g=24, carbs_g=6,  fat_g=28),
+    "Laing":                  NutritionInfo(calories=350, protein_g=10, carbs_g=18, fat_g=24),
+    "Pinakbet":               NutritionInfo(calories=220, protein_g=12, carbs_g=18, fat_g=10),
+    "Ginataang Gulay":        NutritionInfo(calories=280, protein_g=8,  carbs_g=22, fat_g=16),
+    "Mushroom Adobo":         NutritionInfo(calories=200, protein_g=8,  carbs_g=16, fat_g=12),
+    "Tofu Sisig":             NutritionInfo(calories=260, protein_g=18, carbs_g=12, fat_g=14),
+    "Adobong Kangkong":       NutritionInfo(calories=160, protein_g=6,  carbs_g=14, fat_g=8),
+    # ── Filipino Soups ──────────────────────────────────────────────────────────
+    "Bulalo":                 NutritionInfo(calories=480, protein_g=38, carbs_g=10, fat_g=28),
+    "Chicken Tinola":         NutritionInfo(calories=280, protein_g=26, carbs_g=12, fat_g=12),
+    "Sinigang na Hipon":      NutritionInfo(calories=280, protein_g=22, carbs_g=12, fat_g=14),
+    "Sopas":                  NutritionInfo(calories=300, protein_g=20, carbs_g=28, fat_g=10),
+    "Nilagang Baka":          NutritionInfo(calories=360, protein_g=32, carbs_g=14, fat_g=18),
+    "Arroz Caldo":            NutritionInfo(calories=320, protein_g=16, carbs_g=48, fat_g=6),
+    # ── Filipino Noodles & Rice ─────────────────────────────────────────────────
+    "Pancit Canton":          NutritionInfo(calories=380, protein_g=18, carbs_g=48, fat_g=10),
+    "Pancit Palabok":         NutritionInfo(calories=380, protein_g=16, carbs_g=52, fat_g=10),
+    "Pancit Bihon Guisado":   NutritionInfo(calories=350, protein_g=16, carbs_g=48, fat_g=8),
+    # ── Filipino Appetizers ─────────────────────────────────────────────────────
+    "Lumpiang Shanghai":      NutritionInfo(calories=320, protein_g=16, carbs_g=28, fat_g=14),
+    # ── Filipino Desserts ───────────────────────────────────────────────────────
+    "Buko Pandan":            NutritionInfo(calories=280, protein_g=5,  carbs_g=42, fat_g=10),
+    "Leche Flan":             NutritionInfo(calories=320, protein_g=8,  carbs_g=45, fat_g=12),
+    "Halo-Halo":              NutritionInfo(calories=350, protein_g=6,  carbs_g=58, fat_g=10),
+    "Cassava Cake":           NutritionInfo(calories=300, protein_g=4,  carbs_g=50, fat_g=8),
+    "Bibingka":               NutritionInfo(calories=280, protein_g=6,  carbs_g=45, fat_g=8),
+    "Puto":                   NutritionInfo(calories=220, protein_g=5,  carbs_g=40, fat_g=4),
+    "Maja Blanca":            NutritionInfo(calories=260, protein_g=4,  carbs_g=42, fat_g=8),
+    "Ginataan":               NutritionInfo(calories=320, protein_g=4,  carbs_g=50, fat_g=12),
+    # ── Chinese Dishes ──────────────────────────────────────────────────────────
+    "Yangzhou Fried Rice":    NutritionInfo(calories=420, protein_g=16, carbs_g=60, fat_g=12),
+    "Kung Pao Chicken":       NutritionInfo(calories=380, protein_g=28, carbs_g=14, fat_g=20),
+    "Steamed Fish in Soy Sauce": NutritionInfo(calories=260, protein_g=32, carbs_g=4, fat_g=12),
+    "Braised Mushroom and Broccoli": NutritionInfo(calories=200, protein_g=8, carbs_g=20, fat_g=10),
+    "Mango Sago":             NutritionInfo(calories=280, protein_g=4,  carbs_g=48, fat_g=8),
+    "Egg Drop Soup":          NutritionInfo(calories=120, protein_g=8,  carbs_g=8,  fat_g=6),
+    # ── International / Western ─────────────────────────────────────────────────
+    "Sweet Filipino Spaghetti": NutritionInfo(calories=480, protein_g=20, carbs_g=68, fat_g=14),
+    "Roast Beef with Mushroom Gravy": NutritionInfo(calories=440, protein_g=36, carbs_g=10, fat_g=26),
+    "Chicken Cordon Bleu":    NutritionInfo(calories=460, protein_g=38, carbs_g=18, fat_g=24),
+    "Lasagna":                NutritionInfo(calories=480, protein_g=26, carbs_g=48, fat_g=20),
+    "Chicken Teriyaki":       NutritionInfo(calories=360, protein_g=32, carbs_g=16, fat_g=14),
+    "Chicken Kebabs":         NutritionInfo(calories=320, protein_g=30, carbs_g=8,  fat_g=16),
+    "Greek Salad":            NutritionInfo(calories=180, protein_g=6,  carbs_g=14, fat_g=12),
+    "Garden Fresh Salad":     NutritionInfo(calories=120, protein_g=3,  carbs_g=12, fat_g=8),
+}
 
 
 def _now_utc() -> datetime:
@@ -786,11 +852,13 @@ async def _build_menu_items(
 
     for r in selected:
         ingredients = [str(i.get("name")) for i in (r.get("ingredients") or []) if i.get("name")]
+        dish_name = str(r.get("name"))
         item = MenuItem(
-            name=str(r.get("name")),
+            name=dish_name,
             category=str(r.get("category")) if r.get("category") else None,
             servings=per_dish_servings,
             ingredients=ingredients,
+            nutrition=NUTRITION_LOOKUP.get(dish_name),  # Per-serving nutritional data
         )
         items.append(item)
 

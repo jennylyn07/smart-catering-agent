@@ -295,6 +295,14 @@ async def _section_1_correctness_matrix(report: ReportWriter) -> list[CheckResul
         "bangus",
         "tinola",
         "sinigang",
+        # Added: clearly non-vegetarian terms verified absent from all veg dish names
+        "ham",       # Chicken Cordon Bleu contains ham; the dish name itself doesn't have it
+                     # but ham alone could appear in other dish names → safe to block
+        "longganisa",
+        "chorizo",
+        "prawn",
+        "squid",
+        "tuna",
     }
 
     def check_s2(*, dishes: list[str], rationale: str, allergy_flags: list[str], logs: list[dict[str, Any]]):
@@ -314,7 +322,9 @@ async def _section_1_correctness_matrix(report: ReportWriter) -> list[CheckResul
     )
 
     vegan_dish_block = set(vegetarian_block)
-    vegan_extra_block = {"egg", "cheese", "butter", "cream"}
+    # Note: 'milk' is NOT in any vegan-flagged dish *name* in the KB (Buko Pandan has
+    # condensed milk in ingredients but 'milk' is not in its dish name). Safe to add.
+    vegan_extra_block = {"egg", "cheese", "butter", "cream", "milk"}
 
     def check_s3(*, dishes: list[str], rationale: str, allergy_flags: list[str], logs: list[dict[str, Any]]):
         bad1 = [d for d in dishes if _contains_any(d, vegan_dish_block)]
@@ -335,7 +345,12 @@ async def _section_1_correctness_matrix(report: ReportWriter) -> list[CheckResul
         dietary_restrictions=["halal"],
     )
 
-    halal_block = {"pork", "bacon", "lechon", "bagnet", "liempo"}
+    # Expanded: 'ham' added because fil-022 Chicken Cordon Bleu (NOT halal-flagged) has ham
+    # in its ingredient list — if GPT ever picks it for a halal menu the name won't contain
+    # 'ham' itself, but any dish *named* 'Ham ...' would be caught. 'lard' is a hidden pork
+    # derivative that could appear in a dish name. Verified: no halal-flagged dish name
+    # in recipes.json contains 'ham' or 'lard'.
+    halal_block = {"pork", "bacon", "lechon", "bagnet", "liempo", "ham", "lard"}
 
     def check_s4(*, dishes: list[str], rationale: str, allergy_flags: list[str], logs: list[dict[str, Any]]):
         bad = [d for d in dishes if _contains_any(d, halal_block)]
@@ -419,7 +434,10 @@ async def _section_1_correctness_matrix(report: ReportWriter) -> list[CheckResul
         else:
             within_budget = bool(getattr(plan.cost_report, "within_budget", False))
             rounds = int(getattr(plan, "negotiation_rounds_used", 0))
-            ok = rounds > 0 or within_budget is False
+            # PHP 5,000 for 150 guests is mathematically impossible — negotiation MUST
+            # have run (rounds > 0). within_budget alone being False is insufficient
+            # because that could happen without the negotiation loop actually executing.
+            ok = rounds > 0
             status = "PASS" if ok else "FAIL"
             report.write(f"- Result: {status}")
             report.write(f"- negotiation_rounds_used: {rounds}")
@@ -776,14 +794,30 @@ async def _section_4_bonus(report: ReportWriter) -> list[CheckResult]:
                 api_key=api_key,
                 payload=payload,
             )
-            ok = status_code == 200
+            # Also check that the response body doesn't contain an error_code payload
+            has_error_code = False
+            error_details_4d = ""
+            try:
+                parsed_4d = json.loads(body)
+                payload_4d = parsed_4d.get("payload") if isinstance(parsed_4d, dict) else None
+                if isinstance(payload_4d, dict) and payload_4d.get("error_code"):
+                    has_error_code = True
+                    error_details_4d = (
+                        f"error_code={payload_4d.get('error_code')}; "
+                        f"message={payload_4d.get('message')}"
+                    )
+            except Exception:
+                pass
+            ok = (status_code == 200) and (not has_error_code)
             report.write(f"- HTTP status: {status_code}")
             report.write(f"- Response: {body}")
+            if not ok and error_details_4d:
+                report.write(f"- Failure reason: {error_details_4d}")
             results.append(
                 CheckResult(
                     name="TEST 4D",
                     status="PASS" if ok else "FAIL",
-                    details="" if ok else "non-200 response",
+                    details="" if ok else (error_details_4d or "non-200 response"),
                 )
             )
 
@@ -982,13 +1016,16 @@ async def _section_6_edge_cases(report: ReportWriter) -> list[CheckResult]:
 
     def check_e1(plan: Optional[FinalPlan], err: str):
         if plan is None:
-            # Error is acceptable if it is clear.
+            # Pipeline returning a graceful error for budget=1 is acceptable.
             return True, "", {"error_message": err}
         within = bool(getattr(plan.cost_report, "within_budget", False))
         rounds = int(getattr(plan, "negotiation_rounds_used", 0))
+        # Both conditions must hold: over budget AND all 3 negotiation rounds exhausted.
         if within is False and rounds == 3:
-            return True, "", {}
-        return False, "expected within_budget False and negotiation_rounds_used=3 for budget=1", {}
+            return True, "", {"total_cost_php": plan.cost_report.total_cost_php}
+        if within is True:
+            return False, "within_budget is True for budget=1 (should be impossible)", {}
+        return False, f"expected negotiation_rounds_used=3, got {rounds}", {}
 
     # EDGE 2 — Very large guest count
     e2 = _build_event_spec(

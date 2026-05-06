@@ -890,128 +890,173 @@ async def run_orchestration(
         )
 
         negotiation_rounds_used = 0
-        while not _within_budget(cost_report_message.payload) and negotiation_rounds_used < 3:
-            # Early exit: Accountant signals no cheaper reformulation path exists
-            if cost_report_message.payload.reformulation_exhausted:
-                logger.info(
-                    "[%s] Accountant signalled reformulation_exhausted — exiting negotiation early",
-                    session_id,
+        _autogen_used = False
+
+        if not _within_budget(cost_report_message.payload):
+            # ── AutoGen GroupChat negotiation (primary path) ──────────────────
+            try:
+                if isinstance(menu_plan_message.payload, MenuPlan):
+                    reformulated, autogen_flagged, autogen_rounds = await run_autogen_negotiation(
+                        menu_plan=menu_plan_message.payload,
+                        cost_report=cost_report_message.payload,
+                        event_spec=ctx.event_spec,
+                        max_rounds=3,
+                    )
+                    negotiation_rounds_used = autogen_rounds
+                    _autogen_used = True
+                    logger.info(
+                        "[%s] AutoGen negotiation complete — %d rounds, flagged=%s",
+                        session_id, autogen_rounds, autogen_flagged,
+                    )
+                    if autogen_flagged:
+                        menu_plan_message = await revise_menu_plan(
+                            event_spec=ctx.event_spec,
+                            previous_menu_plan_message=menu_plan_message,
+                            flagged_items=autogen_flagged,
+                            session_id=session_id,
+                        )
+                        stopped = _stop_on_error(msg=menu_plan_message, failed_agent="head_chef", session_id=session_id)
+                        if stopped is not None:
+                            return stopped
+                        cost_report_message = await run_accountant(
+                            menu_plan_message=menu_plan_message,
+                            event_spec=ctx.event_spec,
+                            session_id=session_id,
+                        )
+                        stopped = _stop_on_error(msg=cost_report_message, failed_agent="accountant", session_id=session_id)
+                        if stopped is not None:
+                            return stopped
+            except Exception as autogen_exc:
+                logger.warning(
+                    "[%s] AutoGen negotiation failed (%s) — falling back to manual loop",
+                    session_id, autogen_exc,
                 )
-                break
-            negotiation_rounds_used += 1
-            flagged = list(cost_report_message.payload.flagged_items)
+                _autogen_used = False
 
-            shared_memory.append_negotiation_round(
-                round_data={
-                    "round": negotiation_rounds_used,
-                    "flagged_items": flagged,
-                    "budget_php": ctx.budget_php,
-                    "total_cost_php": cost_report_message.payload.total_cost_php,
-                    "within_budget": _within_budget(cost_report_message.payload),
-                },
-                writer_agent_id=AGENT_ID,
-            )
+        # ── Manual negotiation fallback (runs when AutoGen failed or skipped) ─
+        if not _autogen_used:
+            while not _within_budget(cost_report_message.payload) and negotiation_rounds_used < 3:
+                # Early exit: Accountant signals no cheaper reformulation path exists
+                if cost_report_message.payload.reformulation_exhausted:
+                    logger.info(
+                        "[%s] Accountant signalled reformulation_exhausted — exiting negotiation early",
+                        session_id,
+                    )
+                    break
+                negotiation_rounds_used += 1
+                flagged = list(cost_report_message.payload.flagged_items)
 
-            log_event(
-                agent_id=AGENT_ID,
-                action="negotiation_round",
-                status="started",
-                details={
-                    "round": negotiation_rounds_used,
-                    "flagged_items": flagged,
-                    "budget_php": ctx.budget_php,
-                },
-            )
+                shared_memory.append_negotiation_round(
+                    round_data={
+                        "round": negotiation_rounds_used,
+                        "flagged_items": flagged,
+                        "budget_php": ctx.budget_php,
+                        "total_cost_php": cost_report_message.payload.total_cost_php,
+                        "within_budget": _within_budget(cost_report_message.payload),
+                    },
+                    writer_agent_id=AGENT_ID,
+                )
 
-            async def _revise_menu_call():
-                if kernel is not None and kernel_function is not None:
-                    result = await kernel.invoke(
-                        function_name="revise_menu_plan",
-                        plugin_name=plugin_name,
+                log_event(
+                    agent_id=AGENT_ID,
+                    action="negotiation_round",
+                    status="started",
+                    details={
+                        "round": negotiation_rounds_used,
+                        "flagged_items": flagged,
+                        "budget_php": ctx.budget_php,
+                    },
+                )
+
+                async def _revise_menu_call():
+                    if kernel is not None and kernel_function is not None:
+                        result = await kernel.invoke(
+                            function_name="revise_menu_plan",
+                            plugin_name=plugin_name,
+                            event_spec=ctx.event_spec,
+                            previous_menu_plan_message=menu_plan_message,
+                            flagged_items=flagged,
+                            session_id=ctx.session_id,
+                        )
+                        return result.value if result is not None else None
+                    return await revise_menu_plan(
                         event_spec=ctx.event_spec,
                         previous_menu_plan_message=menu_plan_message,
                         flagged_items=flagged,
                         session_id=ctx.session_id,
                     )
-                    return result.value if result is not None else None
-                return await revise_menu_plan(
-                    event_spec=ctx.event_spec,
-                    previous_menu_plan_message=menu_plan_message,
-                    flagged_items=flagged,
-                    session_id=ctx.session_id,
+
+                menu_plan_message = await _call_with_retry(
+                    _revise_menu_call,
+                    agent_name="head_chef_revision",
+                    session_id=session_id,
+                )
+                stopped = _stop_on_error(msg=menu_plan_message, failed_agent="head_chef", session_id=session_id)
+                if stopped is not None:
+                    return stopped
+                if not isinstance(menu_plan_message.payload, MenuPlan):
+                    raise ValueError("Head Chef revision did not return MenuPlan")
+
+                if set(ctx.event_spec.dietary_restrictions) != shared_memory.get("dietary_restrictions"):
+                    raise ValueError("Dietary restrictions changed during negotiation")
+                if set(ctx.event_spec.allergies) != shared_memory.get("allergies"):
+                    raise ValueError("Allergies changed during negotiation")
+
+                shared_memory.set_agent_output(
+                    agent_id="head_chef",
+                    value=_payload_to_memory(menu_plan_message.payload),
+                    writer_agent_id=AGENT_ID,
                 )
 
-            menu_plan_message = await _call_with_retry(
-                _revise_menu_call,
-                agent_name="head_chef_revision",
-                session_id=session_id,
-            )
-            stopped = _stop_on_error(msg=menu_plan_message, failed_agent="head_chef", session_id=session_id)
-            if stopped is not None:
-                return stopped
-            if not isinstance(menu_plan_message.payload, MenuPlan):
-                raise ValueError("Head Chef revision did not return MenuPlan")
+                _handoff(finished="head_chef", next_agent="accountant", session_id=session_id, details={"round": negotiation_rounds_used})
+                if progress_callback:
+                    progress_callback("head_chef", "done")
 
-            if set(ctx.event_spec.dietary_restrictions) != shared_memory.get("dietary_restrictions"):
-                raise ValueError("Dietary restrictions changed during negotiation")
-            if set(ctx.event_spec.allergies) != shared_memory.get("allergies"):
-                raise ValueError("Allergies changed during negotiation")
-
-            shared_memory.set_agent_output(
-                agent_id="head_chef",
-                value=_payload_to_memory(menu_plan_message.payload),
-                writer_agent_id=AGENT_ID,
-            )
-
-            _handoff(finished="head_chef", next_agent="accountant", session_id=session_id, details={"round": negotiation_rounds_used})
-            if progress_callback:
-                progress_callback("head_chef", "done")
-
-            async def _accountant_negotiation_call():
-                if kernel is not None and kernel_function is not None:
-                    result = await kernel.invoke(
-                        function_name="accountant",
-                        plugin_name=plugin_name,
+                async def _accountant_negotiation_call():
+                    if kernel is not None and kernel_function is not None:
+                        result = await kernel.invoke(
+                            function_name="accountant",
+                            plugin_name=plugin_name,
+                            menu_plan_message=menu_plan_message,
+                            event_spec=ctx.event_spec,
+                            session_id=ctx.session_id,
+                            past_context=past_context,
+                        )
+                        return result.value if result is not None else None
+                    return await run_accountant(
                         menu_plan_message=menu_plan_message,
                         event_spec=ctx.event_spec,
                         session_id=ctx.session_id,
                         past_context=past_context,
                     )
-                    return result.value if result is not None else None
-                return await run_accountant(
-                    menu_plan_message=menu_plan_message,
-                    event_spec=ctx.event_spec,
-                    session_id=ctx.session_id,
-                    past_context=past_context,
+
+                cost_report_message = await _call_with_retry(
+                    _accountant_negotiation_call,
+                    agent_name="accountant_negotiation",
+                    session_id=session_id,
+                )
+                stopped = _stop_on_error(msg=cost_report_message, failed_agent="accountant", session_id=session_id)
+                if stopped is not None:
+                    return stopped
+                if not isinstance(cost_report_message.payload, CostReport):
+                    raise ValueError("Accountant did not return CostReport")
+
+                shared_memory.set_agent_output(
+                    agent_id="accountant",
+                    value=_payload_to_memory(cost_report_message.payload),
+                    writer_agent_id=AGENT_ID,
                 )
 
-            cost_report_message = await _call_with_retry(
-                _accountant_negotiation_call,
-                agent_name="accountant_negotiation",
-                session_id=session_id,
-            )
-            stopped = _stop_on_error(msg=cost_report_message, failed_agent="accountant", session_id=session_id)
-            if stopped is not None:
-                return stopped
-            if not isinstance(cost_report_message.payload, CostReport):
-                raise ValueError("Accountant did not return CostReport")
-
-            shared_memory.set_agent_output(
-                agent_id="accountant",
-                value=_payload_to_memory(cost_report_message.payload),
-                writer_agent_id=AGENT_ID,
-            )
-
-            log_event(
-                agent_id=AGENT_ID,
-                action="negotiation_round",
-                status="success",
-                details={
-                    "round": negotiation_rounds_used,
-                    "within_budget": _within_budget(cost_report_message.payload),
-                    "total_cost_php": cost_report_message.payload.total_cost_php,
-                },
-            )
+                log_event(
+                    agent_id=AGENT_ID,
+                    action="negotiation_round",
+                    status="success",
+                    details={
+                        "round": negotiation_rounds_used,
+                        "within_budget": _within_budget(cost_report_message.payload),
+                        "total_cost_php": cost_report_message.payload.total_cost_php,
+                    },
+                )
 
         _handoff(finished="accountant", next_agent="logistics", session_id=session_id)
         if progress_callback:

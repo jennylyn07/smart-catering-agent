@@ -126,12 +126,10 @@ using FIFO/yield reasoning, and explains supplier selection
 rationale. Both GPT calls run concurrently via 
 asyncio.gather() with 8s timeout and graceful degradation.
 
-Note: Inventory data is currently loaded from a local mock 
-inventory file (data/mock_inventory.json) simulating 
-warehouse stock levels. In production, this would be 
-replaced by real-time Cosmos DB inventory queries — the 
-Cosmos connection is already in place for order persistence 
-and long-term memory.
+Note: Inventory data is loaded from Azure Cosmos DB first 
+(container: catering-inventory). If Cosmos inventory is 
+unavailable or empty, the agent falls back to a local mock 
+inventory file (data/mock_inventory.json).
 
 **Technology:** GPT-4o · asyncio.gather() concurrent calls · 
 Deterministic math for quantities
@@ -238,22 +236,20 @@ SK Memory Plugins for persistent agent context
 
 ## Correctness Test Suite
 
-22/23 automated correctness tests passing across 6 sections:
+21/23 automated correctness tests passing across 6 sections:
 
 | Section | Result |
 |---|---|
 | Section 1: Dietary and allergy enforcement | 7/7 ✅ |
 | Section 2: Menu variety | 1/1 ✅ |
 | Section 3: Special notes handling | 3/3 ✅ |
-| Section 4: Bonus features | 5/5 ✅ |
+| Section 4: Bonus features | 4/5 ⚠️ |
 | Section 5: Cost scaling | 1/1 ✅ |
 | Section 6: Edge cases | 5/6 ⚠️ |
 
-Edge Case 6 (very long special notes) passes functionally 
-and produces correct output. Timing is marginal under Azure 
-free tier latency — the pipeline includes a Cosmos 
-long-term memory query which adds latency depending on 
-Azure response time. Production fix: provisioned throughput.
+Current failures:
+- TEST 4D: non-200 response
+- EDGE CASE 6 — Very long special notes: processing time exceeded 30 seconds
 
 ---
 
@@ -328,8 +324,9 @@ Azure Container Apps.
    recipes.json are substituted with nearest match.
 3. **Fixed labor rate** — PHP 150/guest flat rate. 
    Production would vary by service style and duration.
-4. **Mock inventory** — Stock Manager uses local mock 
-   data. Production path: real-time Cosmos DB inventory.
+4. **Inventory fallback** — Stock Manager uses Cosmos DB 
+   inventory when available; otherwise it falls back to a 
+   local mock inventory file.
 5. **Local execution** — App Service blocked by free 
    subscription quota. Functionally identical to cloud 
    deployment for demo purposes.
@@ -358,7 +355,7 @@ smart-catering-agent/
 │   └── suppliers.json      ← Supplier data
 ├── frontend/src/           ← React UI
 ├── tests/
-│   └── test_correctness.py ← 22/23 automated tests
+│   └── test_correctness.py ← 21/23 automated tests
 └── scripts/
     └── setup_search_index.py ← Azure AI Search index builder
 ```

@@ -222,11 +222,14 @@ Agents are registered as a Semantic Kernel plugin
 (`CateringAgentsPlugin`) and invoked via `kernel.invoke()` 
 throughout the pipeline. AutoGen's `RoundRobinGroupChat` drives
 the budget negotiation conversation between the Accountant and
-Head Chef agents, replacing the manual loop with a genuine
-multi-agent dialogue.
+Head Chef agents.
 
 **Active — Semantic Kernel:** `CateringAgentsPlugin` with `@kernel_function` 
-decorators, invoked via `kernel.invoke()` for all 5 agents
+decorators. Concierge, Head Chef, Accountant, and Logistics Lead are
+invoked via `kernel.invoke()`. Stock Manager calls `run_stock_manager()`
+directly due to a Semantic Kernel serialization incompatibility with the
+parallel invocation pattern — the agent logic, inputs, and outputs are
+identical; only the invocation path differs.
 
 **Active — AutoGen GroupChat:** `AccountantAgent` + `HeadChefAgent` run in a
 `RoundRobinGroupChat` (≤3 rounds) when the plan exceeds budget.

@@ -88,12 +88,16 @@ def _build_autogen_orchestrator_agent() -> Any:
     if not (endpoint and api_key and deployment):
         return None
 
-    model_client = AzureOpenAIChatCompletionClient(
-        azure_endpoint=endpoint,
-        azure_deployment=deployment,
-        api_key=api_key,
-        api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview"),
-    )
+    try:
+        model_client = AzureOpenAIChatCompletionClient(
+            azure_endpoint=endpoint,
+            azure_deployment=deployment,
+            api_key=api_key,
+            api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview"),
+            model=os.getenv("AZURE_OPENAI_MODEL", "gpt-4o"),
+        )
+    except Exception:
+        return None
     return AssistantAgent(name="OrchestratorAgent", model_client=model_client)
 
 
@@ -145,9 +149,9 @@ if kernel_function is not None:
         @kernel_function(name="stock_manager")
         async def stock_manager(
             self,
-            logistics_plan_message: AgentMessage,
             cost_report_message: AgentMessage,
             session_id: str,
+            logistics_plan_message: AgentMessage | None = None,
         ) -> AgentMessage:
             return await run_stock_manager(
                 logistics_plan_message=logistics_plan_message,
@@ -1033,15 +1037,6 @@ async def run_orchestration(
         # Stock Manager runs in parallel with Logistics (both only need the cost_report).
         # The event date is passed directly so no logistics handoff is needed before it starts.
         async def _stock_manager_call():
-            if kernel is not None and kernel_function is not None:
-                result = await kernel.invoke(
-                    function_name="stock_manager",
-                    plugin_name=plugin_name,
-                    logistics_plan_message=None,
-                    cost_report_message=cost_report_message,
-                    session_id=ctx.session_id,
-                )
-                return result.value if result is not None else None
             return await run_stock_manager(
                 logistics_plan_message=None,
                 cost_report_message=cost_report_message,

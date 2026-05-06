@@ -49,7 +49,7 @@ flowchart TD
     end
 
     subgraph Framework["🛠️ Microsoft Agent Framework"]
-        SK["Semantic Kernel\nCateringAgentsPlugin\n@kernel_function × 5 agents\nkernel.invoke() orchestration"]
+        SK["Semantic Kernel\nCateringAgentsPlugin\n@kernel_function × 4 agents\nkernel.invoke() orchestration\nStock Manager: direct call"]
         AutoGen["AutoGen 0.7.5\nRoundRobinGroupChat\nAccountantAgent + HeadChefAgent\nAzureOpenAIChatCompletionClient"]
     end
 
@@ -176,7 +176,7 @@ classDiagram
 | Layer | Technology | Version | Role |
 |---|---|---|---|
 | **AI Reasoning** | Azure OpenAI GPT-4o | 2024-11-20 | All 5 agents' reasoning, judgment, and rationale |
-| **Agent Framework** | Semantic Kernel | 1.41.2 | `CateringAgentsPlugin` + `@kernel_function` × 5, `kernel.invoke()` |
+| **Agent Framework** | Semantic Kernel | 1.41.2 | `CateringAgentsPlugin` + `@kernel_function` × 4 agents via `kernel.invoke()`. Stock Manager calls `run_stock_manager()` directly (SK serialization incompatibility with parallel pattern) |
 | **Multi-Agent Chat** | AutoGen AgentChat | 0.7.5 | `RoundRobinGroupChat` — budget negotiation between AccountantAgent + HeadChefAgent |
 | **AutoGen Model Client** | AutoGen Ext | 0.7.5 | `AzureOpenAIChatCompletionClient` for AutoGen agents |
 | **RAG** | Azure AI Search | REST API | 70-document index — recipe selection + ingredient pricing |

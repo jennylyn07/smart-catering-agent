@@ -122,6 +122,49 @@ NUTRITION_LOOKUP: dict[str, NutritionInfo] = {
 }
 
 
+_NUTRITION_LOOKUP_LOWER: dict[str, NutritionInfo] = {k.strip().lower(): v for k, v in NUTRITION_LOOKUP.items()}
+
+
+def _nutrition_for(dish_name: str, category: Optional[str] = None) -> Optional[NutritionInfo]:
+    key = str(dish_name or "").strip()
+    if not key:
+        return None
+
+    exact = NUTRITION_LOOKUP.get(key) or _NUTRITION_LOOKUP_LOWER.get(key.lower())
+    if exact is not None:
+        return exact
+
+    cat = str(category or "").strip().lower()
+    name = key.lower()
+
+    if any(w in name for w in ("cake", "pie", "tiramisu", "leche flan", "buko", "halo", "dessert")) or cat == "dessert":
+        return NutritionInfo(calories=300, protein_g=5, carbs_g=45, fat_g=10)
+    if any(w in name for w in ("salad", "coleslaw")) or cat == "appetizer":
+        return NutritionInfo(calories=150, protein_g=4, carbs_g=12, fat_g=9)
+    if "soup" in name or cat == "soup":
+        return NutritionInfo(calories=160, protein_g=6, carbs_g=14, fat_g=8)
+    if any(w in name for w in ("pasta", "spaghetti", "macaroni")) or cat == "pasta":
+        return NutritionInfo(calories=420, protein_g=18, carbs_g=60, fat_g=12)
+    if any(w in name for w in ("noodle", "pancit")) or cat == "noodles":
+        return NutritionInfo(calories=380, protein_g=18, carbs_g=48, fat_g=10)
+    if any(w in name for w in ("rice", "sinangag")) or cat == "rice":
+        return NutritionInfo(calories=260, protein_g=4, carbs_g=50, fat_g=4)
+    if any(w in name for w in ("fish", "salmon", "tilapia")):
+        return NutritionInfo(calories=280, protein_g=28, carbs_g=6, fat_g=14)
+    if any(w in name for w in ("beef", "bulgogi")):
+        return NutritionInfo(calories=360, protein_g=28, carbs_g=12, fat_g=22)
+    if any(w in name for w in ("pork", "inasal", "adobo", "lechon")):
+        return NutritionInfo(calories=360, protein_g=26, carbs_g=10, fat_g=22)
+    if "chicken" in name:
+        return NutritionInfo(calories=320, protein_g=28, carbs_g=10, fat_g=16)
+    if cat in {"vegetable", "vegetables"} or any(w in name for w in ("vegetable", "veggies", "pinakbet", "chop suey")):
+        return NutritionInfo(calories=220, protein_g=6, carbs_g=22, fat_g=10)
+    if cat == "main":
+        return NutritionInfo(calories=340, protein_g=24, carbs_g=18, fat_g=18)
+
+    return NutritionInfo(calories=300, protein_g=12, carbs_g=35, fat_g=12)
+
+
 def _now_utc() -> datetime:
     """Return the current UTC time.
 
@@ -881,7 +924,7 @@ async def _build_menu_items(
             category=str(r.get("category")) if r.get("category") else None,
             servings=per_dish_servings,
             ingredients=ingredients,
-            nutrition=NUTRITION_LOOKUP.get(dish_name),  # Per-serving nutritional data
+            nutrition=_nutrition_for(dish_name, str(r.get("category")) if r.get("category") else None),  # Per-serving nutritional data
         )
         items.append(item)
 
@@ -945,6 +988,11 @@ async def revise_menu_plan(
 
         kept_items = [i for i in previous_plan.menu_items if i.name.strip().lower() not in flagged]
         removed = [i.name for i in previous_plan.menu_items if i.name.strip().lower() in flagged]
+
+        kept_items = [
+            i if i.nutrition is not None else i.model_copy(update={"nutrition": _nutrition_for(i.name, i.category)})
+            for i in kept_items
+        ]
 
         recipes = await _load_candidate_recipes(event_spec=event_spec)
         recipes = _filter_by_cuisine(recipes, event_spec.cuisine_preferences)
@@ -1051,6 +1099,7 @@ async def revise_menu_plan(
                             category=cat,
                             servings=max(1, int(event_spec.guest_count)),
                             ingredients=ingredients,
+                            nutrition=_nutrition_for(name, cat),
                         )
                     )
                     used_names.add(name.lower())
@@ -1090,6 +1139,7 @@ async def revise_menu_plan(
                             category=cat,
                             servings=max(1, int(event_spec.guest_count)),
                             ingredients=ingredients,
+                            nutrition=_nutrition_for(name, cat),
                         )
                     )
                     used_names.add(name.lower())

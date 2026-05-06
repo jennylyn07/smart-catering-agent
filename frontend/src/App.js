@@ -249,118 +249,135 @@ function App() {
       )}
 
       {showHistory ? (
-        <section className="resultsSection" aria-label="Order History">
+        <section
+          className="resultsSection"
+          aria-label="Order History"
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflow: 'hidden',
+            display: 'flex',
+          }}
+        >
           <div style={{
             background: 'var(--neu-bg)',
             borderRadius: 'var(--radius-md)',
             boxShadow: 'var(--shadow-neu-out-lg)',
             padding: '24px',
+            width: '100%',
+            height: '100%',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 0,
           }}>
             <h2 style={{
               fontFamily: 'Syne, sans-serif',
               marginBottom: '16px',
             }}>📋 Order History</h2>
-            {historyLoading && (
-              <p style={{ color: 'var(--neu-ink-muted)' }}>
-                Loading past orders...
-              </p>
-            )}
-            {!historyLoading && historyOrders.length === 0 && (
-              <p style={{ color: 'var(--neu-ink-muted)' }}>
-                No past orders found.
-              </p>
-            )}
-            {!historyLoading && historyOrders.length > 0 && (
-              <table style={{
-                width: '100%', borderCollapse: 'collapse',
-                fontSize: '14px',
-              }}>
-                <thead>
-                  <tr style={{ background: 'var(--neu-mid)' }}>
-                    {['Event','Date','Guests','Budget',
-                      'Total Cost','Status'].map(h => (
-                      <th key={h} style={{
-                        padding: '10px 14px', textAlign: 'left',
-                        fontSize: '11px', letterSpacing: '0.8px',
-                        textTransform: 'uppercase',
-                        color: 'var(--neu-ink-muted)',
-                        fontWeight: '700',
-                      }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {historyOrders.map((order, i) => (
-                    <>
-                      <tr
-                        key={i}
-                        onClick={() => handleSelectOrder(order)}
-                        style={{
-                          borderBottom: '1px solid var(--neu-mid)',
-                          cursor: 'pointer',
-                          background: selectedOrder?.order_id === order.order_id
-                            ? 'rgba(232,96,28,0.05)' : 'transparent',
-                        }}
-                      >
-                        <td style={{ padding: '12px 14px', fontWeight: '600' }}>
-                          {order.event_name}
-                        </td>
-                        <td style={{ padding: '12px 14px',
-                          color: 'var(--neu-ink-muted)' }}>
-                          {order.event_date
-                            ? new Date(order.event_date).toLocaleDateString(
-                                'en-PH', {
-                                  month: 'short', day: 'numeric',
-                                  year: 'numeric'
-                                })
-                            : '—'}
-                        </td>
-                        <td style={{ padding: '12px 14px' }}>
-                          {order.guest_count}
-                        </td>
-                        <td style={{ padding: '12px 14px' }}>
-                          ₱{Number(order.budget_php).toLocaleString()}
-                        </td>
-                        <td style={{ padding: '12px 14px' }}>
-                          ₱{Number(order.total_cost_php).toLocaleString()}
-                        </td>
-                        <td style={{ padding: '12px 14px' }}>
-                          <span style={{
-                            color: order.within_budget
-                              ? 'var(--color-ok)' : 'var(--color-warn)',
-                            fontWeight: '700', fontSize: '12px',
-                          }}>
-                            {order.within_budget
-                              ? '✓ Within budget' : '✗ Over budget'}
-                          </span>
-                        </td>
-                      </tr>
-                      {selectedOrder?.order_id === order.order_id && (
-                        <tr key={`${i}-detail`}>
-                          <td colSpan={6} style={{ padding: '0' }}>
-                            {selectedOrder.fullPlan ? (
-                              <div style={{ padding: '16px' }}>
-                                <ResultsDashboard
-                                  finalPlan={selectedOrder.fullPlan}
-                                />
-                              </div>
-                            ) : (
-                              <div style={{
-                                padding: '16px 20px',
-                                color: 'var(--neu-ink-muted)',
-                                fontSize: '13px',
-                              }}>
-                                Loading full plan...
-                              </div>
-                            )}
+            <div style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
+              {historyLoading && (
+                <p style={{ color: 'var(--neu-ink-muted)' }}>
+                  Loading past orders...
+                </p>
+              )}
+              {!historyLoading && historyOrders.length === 0 && (
+                <p style={{ color: 'var(--neu-ink-muted)' }}>
+                  No past orders found.
+                </p>
+              )}
+              {!historyLoading && historyOrders.length > 0 && (
+                <table style={{
+                  width: '100%', borderCollapse: 'collapse',
+                  fontSize: '14px',
+                }}>
+                  <thead>
+                    <tr style={{ background: 'var(--neu-mid)' }}>
+                      {['Event','Date','Guests','Budget',
+                        'Total Cost','Status'].map(h => (
+                        <th key={h} style={{
+                          padding: '10px 14px', textAlign: 'left',
+                          fontSize: '11px', letterSpacing: '0.8px',
+                          textTransform: 'uppercase',
+                          color: 'var(--neu-ink-muted)',
+                          fontWeight: '700',
+                        }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historyOrders.map((order, i) => (
+                      <>
+                        <tr
+                          key={i}
+                          onClick={() => handleSelectOrder(order)}
+                          style={{
+                            borderBottom: '1px solid var(--neu-mid)',
+                            cursor: 'pointer',
+                            background: selectedOrder?.order_id === order.order_id
+                              ? 'rgba(232,96,28,0.05)' : 'transparent',
+                          }}
+                        >
+                          <td style={{ padding: '12px 14px', fontWeight: '600' }}>
+                            {order.event_name}
+                          </td>
+                          <td style={{ padding: '12px 14px',
+                            color: 'var(--neu-ink-muted)' }}>
+                            {order.event_date
+                              ? new Date(order.event_date).toLocaleDateString(
+                                  'en-PH', {
+                                    month: 'short', day: 'numeric',
+                                    year: 'numeric'
+                                  })
+                              : '—'}
+                          </td>
+                          <td style={{ padding: '12px 14px' }}>
+                            {order.guest_count}
+                          </td>
+                          <td style={{ padding: '12px 14px' }}>
+                            ₱{Number(order.budget_php).toLocaleString()}
+                          </td>
+                          <td style={{ padding: '12px 14px' }}>
+                            ₱{Number(order.total_cost_php).toLocaleString()}
+                          </td>
+                          <td style={{ padding: '12px 14px' }}>
+                            <span style={{
+                              color: order.within_budget
+                                ? 'var(--color-ok)' : 'var(--color-warn)',
+                              fontWeight: '700', fontSize: '12px',
+                            }}>
+                              {order.within_budget
+                                ? '✓ Within budget' : '✗ Over budget'}
+                            </span>
                           </td>
                         </tr>
-                      )}
-                    </>
-                  ))}
-                </tbody>
-              </table>
-            )}
+                        {selectedOrder?.order_id === order.order_id && (
+                          <tr key={`${i}-detail`}>
+                            <td colSpan={6} style={{ padding: '0' }}>
+                              {selectedOrder.fullPlan ? (
+                                <div style={{ padding: '16px' }}>
+                                  <ResultsDashboard
+                                    finalPlan={selectedOrder.fullPlan}
+                                  />
+                                </div>
+                              ) : (
+                                <div style={{
+                                  padding: '16px 20px',
+                                  color: 'var(--neu-ink-muted)',
+                                  fontSize: '13px',
+                                }}>
+                                  Loading full plan...
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
         </section>
       ) : (

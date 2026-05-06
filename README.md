@@ -84,8 +84,8 @@ follows a reformulation priority order: Protein Down-Tiering
 removal as last resort only.
 
 **Technology:** GPT-4o (temp 0.8) · Azure AI Search RAG ·
-49 individual recipe documents · Post-AI allergy safety check ·
-Hardcoded `NUTRITION_LOOKUP` (51 dishes) → per-serving kcal/protein/carbs/fat on every `MenuItem`
+68 individual recipe documents · Post-AI allergy safety check ·
+Hardcoded `NUTRITION_LOOKUP` (68 dishes) → per-serving kcal/protein/carbs/fat on every `MenuItem`
 
 ---
 
@@ -210,7 +210,7 @@ logged with agent_id, action, status, and timestamp.
 | Service | Resource | Role in System |
 |---|---|---|
 | Azure OpenAI GPT-4o | foundry-jmagno-2026 | Powers all 5 agent reasoning calls |
-| Azure AI Search | search-jmagno-2026 | RAG knowledge base — 51 documents (49 recipes + pricing + suppliers) |
+| Azure AI Search | search-jmagno-2026 | RAG knowledge base — 70 documents (68 recipes + pricing + suppliers) |
 | Azure Cosmos DB | cosmos-jmagno-2026 | Order persistence + historical order context queries |
 | Azure Blob Storage | storagejmagno2026 | Document storage layer |
 
@@ -243,13 +243,13 @@ SK Memory Plugins for persistent agent context
 
 | Feature | Implementation |
 |---|---|
-| RAG Knowledge Base | 51 documents in Azure AI Search — 49 individual recipe docs + pricing + suppliers |
+| RAG Knowledge Base | 70 documents in Azure AI Search — 68 individual recipe docs + pricing + suppliers |
 | Shared Memory | Immutable dietary/allergy flags across all agents — cannot be overwritten mid-pipeline |
 | Historical Order Context | query_past_orders() retrieves past similar events from Cosmos DB, injects context into Head Chef and Accountant prompts |
 | Order History UI | Full order history tab with expandable plan detail — persisted in Cosmos DB |
 | Budget Suggestion | When plan exceeds budget, Accountant outputs suggested_budget_php — shown in UI Cost tab |
 | Profitability Forecast | recommended_selling_price_php + estimated_margin_percent (30% target) in every CostReport |
-| Nutritional Data | Per-serving kcal/protein/carbs/fat on every MenuItem via NUTRITION_LOOKUP (51 dishes) |
+| Nutritional Data | Per-serving kcal/protein/carbs/fat on every MenuItem via NUTRITION_LOOKUP (68 dishes) |
 | Gantt Chart | GanttTask list derived from CPM timeline in every LogisticsPlan |
 | Real-Time Adaptation | /adapt endpoint re-runs impacted pipeline on guest count, dietary, or budget change |
 | Multi-Event Optimization | Multi-order endpoint with shared procurement across concurrent events |
@@ -260,7 +260,7 @@ SK Memory Plugins for persistent agent context
 
 ## Integration Test Suite
 
-23/23 integration checks passing across 6 sections
+22/23 integration checks passing across 6 sections
 (these are end-to-end smoke tests that validate pipeline 
 behavior — dietary enforcement, cost scaling, edge case 
 handling — not unit tests of individual computations):
@@ -272,7 +272,7 @@ handling — not unit tests of individual computations):
 | Section 3: Special notes handling | 3/3 ✅ |
 | Section 4: Bonus features | 5/5 ✅ |
 | Section 5: Cost scaling reality check | 1/1 ✅ |
-| Section 6: Edge cases | 6/6 ✅ |
+| Section 6: Edge cases | 5/6 ⚠️ (Edge Case 6 timing — Azure free tier latency, logic correct) |
 
 ---
 
@@ -368,7 +368,6 @@ Azure Container Apps.
 | Feature | Description | Priority |
 |---|---|---|
 | Tool Calling | SK `@kernel_function` tools for on-demand RAG (search_recipes, get_price) instead of pre-fetch | High |
-| AutoGen GroupChat | AccountantAgent + HeadChefAgent in RoundRobinGroupChat for genuine negotiation conversation | High |
 | SK Planner | Dynamic pipeline generation — agents register capabilities, Planner decides execution order | Medium |
 | Real-Time SSE | FastAPI BackgroundTasks + asyncio.Queue per session — true per-agent progress streaming | Medium |
 | Provisioned Throughput | Sub-5s per GPT-4o call — 8-20s total pipeline vs current 20-120s | High |
@@ -389,20 +388,21 @@ smart-catering-agent/
 │   ├── logistics.py        ← Agent 4: Timeline and delivery
 │   └── stock_manager.py    ← Agent 5: Inventory and procurement
 ├── orchestrator/
-│   └── engine.py           ← Coordinates all agents, retry logic
+│   ├── engine.py              ← Coordinates all agents, retry logic, AutoGen integration
+│   └── autogen_negotiation.py ← AutoGen RoundRobinGroupChat budget negotiation
 ├── utils/
 │   ├── azure_client.py     ← Azure SDK connections
 │   ├── cosmos_store.py     ← Cosmos DB operations + historical order context
 │   └── logger.py           ← Structured logging
 ├── knowledge_base/
-│   ├── recipes.json        ← 49 recipes, 9 categories
+│   ├── recipes.json        ← 68 recipes, 9 categories
 │   ├── pricing.json        ← Ingredient pricing
 │   └── suppliers.json      ← Supplier data
 ├── frontend/src/           ← React UI
 ├── tests/
-│   └── test_correctness.py ← 23/23 integration checks
+│   └── test_correctness.py ← 22/23 integration checks
 └── scripts/
-    └── setup_search_index.py ← Azure AI Search index builder
+    └── setup_search_index.py ← Azure AI Search index builder (70 docs)
 ```
 
 ---

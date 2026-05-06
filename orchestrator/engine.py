@@ -17,6 +17,7 @@ from agents.head_chef import revise_menu_plan, run_head_chef
 from agents.logistics import run_logistics
 from agents.stock_manager import run_stock_manager
 from memory.shared_memory import SharedMemory
+from orchestrator.autogen_negotiation import run_autogen_negotiation
 from utils.adaptation import AdaptationChangeType
 from utils.json_schema import (
     AgentMessage,
@@ -570,40 +571,93 @@ async def adapt_from_existing_plan(
         )
 
     negotiation_rounds_used = 0
-    while not _within_budget(cost_report_message.payload) and negotiation_rounds_used < 3:
-        negotiation_rounds_used += 1
-        flagged = list(cost_report_message.payload.flagged_items)
+    _autogen_used = False
 
-        menu_plan_message = await revise_menu_plan(
-            event_spec=event_spec,
-            previous_menu_plan_message=menu_plan_message,
-            flagged_items=flagged,
-            session_id=session_id,
-        )
-        stopped = _stop_on_error(msg=menu_plan_message, failed_agent="head_chef", session_id=session_id)
-        if stopped is not None:
-            return stopped
-        if not isinstance(menu_plan_message.payload, MenuPlan):
-            return _error_message(
-                session_id=session_id,
-                error_code="ADAPT_HEAD_CHEF_BAD_PAYLOAD",
-                message="Head Chef returned an unexpected payload during negotiation.",
+    if not _within_budget(cost_report_message.payload):
+        # ── AutoGen GroupChat negotiation (primary path) ─────────────────────
+        try:
+            if isinstance(menu_plan_message.payload, MenuPlan):
+                reformulated, autogen_flagged, autogen_rounds = await run_autogen_negotiation(
+                    menu_plan=menu_plan_message.payload,
+                    cost_report=cost_report_message.payload,
+                    event_spec=event_spec,
+                    max_rounds=3,
+                )
+                negotiation_rounds_used = autogen_rounds
+                _autogen_used = True
+                logger.info(
+                    "[%s] AutoGen negotiation complete — %d rounds, flagged=%s",
+                    session_id, autogen_rounds, autogen_flagged,
+                )
+                # Drive the structured Head Chef revision using AutoGen-derived flags
+                if autogen_flagged:
+                    menu_plan_message = await revise_menu_plan(
+                        event_spec=event_spec,
+                        previous_menu_plan_message=menu_plan_message,
+                        flagged_items=autogen_flagged,
+                        session_id=session_id,
+                    )
+                    stopped = _stop_on_error(msg=menu_plan_message, failed_agent="head_chef", session_id=session_id)
+                    if stopped is not None:
+                        return stopped
+                    cost_report_message = await run_accountant(
+                        menu_plan_message=menu_plan_message,
+                        event_spec=event_spec,
+                        session_id=session_id,
+                    )
+                    stopped = _stop_on_error(msg=cost_report_message, failed_agent="accountant", session_id=session_id)
+                    if stopped is not None:
+                        return stopped
+        except Exception as autogen_exc:
+            logger.warning(
+                "[%s] AutoGen negotiation failed (%s) — falling back to manual loop",
+                session_id, autogen_exc,
             )
+            _autogen_used = False
 
-        cost_report_message = await run_accountant(
-            menu_plan_message=menu_plan_message,
-            event_spec=event_spec,
-            session_id=session_id,
-        )
-        stopped = _stop_on_error(msg=cost_report_message, failed_agent="accountant", session_id=session_id)
-        if stopped is not None:
-            return stopped
-        if not isinstance(cost_report_message.payload, CostReport):
-            return _error_message(
+    # ── Manual negotiation fallback (runs when AutoGen failed or skipped) ───
+    if not _autogen_used:
+        while not _within_budget(cost_report_message.payload) and negotiation_rounds_used < 3:
+            # Early exit: Accountant signals no cheaper reformulation path exists
+            if cost_report_message.payload.reformulation_exhausted:
+                logger.info(
+                    "[%s] Accountant signalled reformulation_exhausted — exiting negotiation early",
+                    session_id,
+                )
+                break
+            negotiation_rounds_used += 1
+            flagged = list(cost_report_message.payload.flagged_items)
+
+            menu_plan_message = await revise_menu_plan(
+                event_spec=event_spec,
+                previous_menu_plan_message=menu_plan_message,
+                flagged_items=flagged,
                 session_id=session_id,
-                error_code="ADAPT_ACCOUNTANT_BAD_PAYLOAD",
-                message="Accountant returned an unexpected payload during negotiation.",
             )
+            stopped = _stop_on_error(msg=menu_plan_message, failed_agent="head_chef", session_id=session_id)
+            if stopped is not None:
+                return stopped
+            if not isinstance(menu_plan_message.payload, MenuPlan):
+                return _error_message(
+                    session_id=session_id,
+                    error_code="ADAPT_HEAD_CHEF_BAD_PAYLOAD",
+                    message="Head Chef returned an unexpected payload during negotiation.",
+                )
+
+            cost_report_message = await run_accountant(
+                menu_plan_message=menu_plan_message,
+                event_spec=event_spec,
+                session_id=session_id,
+            )
+            stopped = _stop_on_error(msg=cost_report_message, failed_agent="accountant", session_id=session_id)
+            if stopped is not None:
+                return stopped
+            if not isinstance(cost_report_message.payload, CostReport):
+                return _error_message(
+                    session_id=session_id,
+                    error_code="ADAPT_ACCOUNTANT_BAD_PAYLOAD",
+                    message="Accountant returned an unexpected payload during negotiation.",
+                )
 
     event_datetime_iso = f"{event_spec.event_date}T18:00:00+08:00"
     logistics_plan_message = await run_logistics(
@@ -831,6 +885,13 @@ async def run_orchestration(
 
         negotiation_rounds_used = 0
         while not _within_budget(cost_report_message.payload) and negotiation_rounds_used < 3:
+            # Early exit: Accountant signals no cheaper reformulation path exists
+            if cost_report_message.payload.reformulation_exhausted:
+                logger.info(
+                    "[%s] Accountant signalled reformulation_exhausted — exiting negotiation early",
+                    session_id,
+                )
+                break
             negotiation_rounds_used += 1
             flagged = list(cost_report_message.payload.flagged_items)
 

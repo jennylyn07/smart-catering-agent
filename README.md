@@ -220,20 +220,21 @@ logged with agent_id, action, status, and timestamp.
 
 Agents are registered as a Semantic Kernel plugin 
 (`CateringAgentsPlugin`) and invoked via `kernel.invoke()` 
-throughout the pipeline. AutoGen's `AssistantAgent` is 
-instantiated as part of the framework integration — 
-pipeline sequencing, negotiation, and agent handoffs are 
-managed directly by the orchestration engine, consistent 
-with Microsoft Agent Framework patterns.
+throughout the pipeline. AutoGen's `RoundRobinGroupChat` drives
+the budget negotiation conversation between the Accountant and
+Head Chef agents, replacing the manual loop with a genuine
+multi-agent dialogue.
 
-**Active:** `CateringAgentsPlugin` with `@kernel_function` 
+**Active — Semantic Kernel:** `CateringAgentsPlugin` with `@kernel_function` 
 decorators, invoked via `kernel.invoke()` for all 5 agents
 
-**Integrated (not yet active):** AutoGen `AssistantAgent` 
-— instantiated, pipeline coordination on the roadmap
+**Active — AutoGen GroupChat:** `AccountantAgent` + `HeadChefAgent` run in a
+`RoundRobinGroupChat` (≤3 rounds) when the plan exceeds budget.
+AutoGen conducts the negotiation conversation; flagged dishes are
+passed back to the Semantic Kernel Head Chef for structured revision.
+Graceful fallback to manual loop on any AutoGen exception.
 
-**Production roadmap:** AutoGen GroupChat for dynamic agent 
-routing, SK Planner for adaptive pipeline sequencing, 
+**Production roadmap:** SK Planner for adaptive pipeline sequencing,
 SK Memory Plugins for persistent agent context
 
 ---
@@ -245,8 +246,14 @@ SK Memory Plugins for persistent agent context
 | RAG Knowledge Base | 51 documents in Azure AI Search — 49 individual recipe docs + pricing + suppliers |
 | Shared Memory | Immutable dietary/allergy flags across all agents — cannot be overwritten mid-pipeline |
 | Historical Order Context | query_past_orders() retrieves past similar events from Cosmos DB, injects context into Head Chef and Accountant prompts |
+| Order History UI | Full order history tab with expandable plan detail — persisted in Cosmos DB |
+| Budget Suggestion | When plan exceeds budget, Accountant outputs suggested_budget_php — shown in UI Cost tab |
+| Profitability Forecast | recommended_selling_price_php + estimated_margin_percent (30% target) in every CostReport |
+| Nutritional Data | Per-serving kcal/protein/carbs/fat on every MenuItem via NUTRITION_LOOKUP (51 dishes) |
+| Gantt Chart | GanttTask list derived from CPM timeline in every LogisticsPlan |
 | Real-Time Adaptation | /adapt endpoint re-runs impacted pipeline on guest count, dietary, or budget change |
 | Multi-Event Optimization | Multi-order endpoint with shared procurement across concurrent events |
+| Parallel Agent Execution | Logistics Lead + Stock Manager run concurrently via asyncio.gather() |
 | Retry Logic | _call_with_retry() wraps all 5 agent calls — up to 3 attempts on transient failures |
 
 ---
@@ -341,9 +348,11 @@ Azure Container Apps.
    recipes.json are substituted with nearest match.
 3. **Fixed labor rate** — PHP 150/guest flat rate.
    Production would vary by service style and duration.
-4. **Inventory fallback** — Stock Manager uses Cosmos DB
-   inventory when available; otherwise it falls back to a
-   local mock inventory file.
+4. **Inventory source** — Stock Manager queries Cosmos DB
+   (`catering-inventory` container, 33 seeded items) first.
+   Falls back to local `data/mock_inventory.json` if Cosmos
+   is unavailable. Production would have live inventory writes
+   after each procurement list is generated.
 5. **Local execution** — App Service blocked by free
    subscription quota. Functionally identical to cloud
    deployment for demo purposes.
@@ -351,6 +360,21 @@ Azure Container Apps.
    elapsed time and time-based agent advancement during
    processing. True per-agent real-time status requires
    an async pipeline (production roadmap).
+
+---
+
+## Production Roadmap
+
+| Feature | Description | Priority |
+|---|---|---|
+| Tool Calling | SK `@kernel_function` tools for on-demand RAG (search_recipes, get_price) instead of pre-fetch | High |
+| AutoGen GroupChat | AccountantAgent + HeadChefAgent in RoundRobinGroupChat for genuine negotiation conversation | High |
+| SK Planner | Dynamic pipeline generation — agents register capabilities, Planner decides execution order | Medium |
+| Real-Time SSE | FastAPI BackgroundTasks + asyncio.Queue per session — true per-agent progress streaming | Medium |
+| Provisioned Throughput | Sub-5s per GPT-4o call — 8-20s total pipeline vs current 20-120s | High |
+| Evals Framework | RAGAS/custom harness for prompt quality A/B testing | Low |
+| Live Inventory Updates | Subtract purchased quantities from Cosmos inventory after each order | Low |
+| Azure App Service | Container deployment when subscription quota allows | Medium |
 
 ---
 

@@ -645,6 +645,13 @@ async def run_accountant(
         # Formula: selling_price = total_cost / (1 - target_margin) = total_cost / 0.70
         recommended_selling_price = round(total_cost / 0.70, 2)
 
+        # Negotiation exit signal: if we are over budget but GPT found nothing to flag,
+        # reformulation is exhausted — the engine should exit the negotiation loop early.
+        reformulation_exhausted = (
+            is_within_budget is False
+            and len(flagged_items) == 0
+        )
+
         report = CostReport(
             event_id=event_spec.event_id,
             cost_per_dish=dish_costs,
@@ -676,6 +683,7 @@ async def run_accountant(
             ),
             recommended_selling_price_php=recommended_selling_price,
             estimated_margin_percent=30.0,
+            reformulation_exhausted=reformulation_exhausted,
         )
 
         msg = _wrap_message(

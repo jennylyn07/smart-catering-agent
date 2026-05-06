@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 import asyncio
 import json as json_lib
+import time
 
 from api.auth import require_api_key
 from api.models import CateringAdaptRequest, CateringMultiOrderRequest, CateringOrderRequest, CateringRawTextOrderRequest
@@ -22,6 +23,7 @@ from utils.cosmos_store import (
     read_order_document,
     get_recent_orders,
 )
+from utils.azure_client import create_async_azure_openai_client, create_cosmos_client, create_search_client, get_azure_openai_deployment_name
 from utils.json_schema import AgentMessage
 from utils.logger import log_event
 
@@ -31,6 +33,76 @@ router = APIRouter(prefix="/api/v1")
 # In-memory progress store for SSE — keyed by session_id
 _progress_store: dict[str, list[str]] = {}
 _progress_events: dict[str, asyncio.Event] = {}
+
+# Health check cache — 30s TTL to avoid burning tokens on frequent polls
+_health_cache: dict = {}
+_health_cache_ts: float = 0.0
+_HEALTH_CACHE_TTL = 30.0
+
+
+@router.get("/health/agents", tags=["monitoring"])
+async def health_agents() -> dict:
+    """Check connectivity to all Azure backend services used by the agent pipeline.
+
+    Returns a JSON object with overall status ('ok' or 'degraded') and
+    per-service detail. Results are cached for 30 seconds to avoid
+    unnecessary Azure API calls during demo polling.
+    """
+    global _health_cache, _health_cache_ts
+    now = time.monotonic()
+    if _health_cache and (now - _health_cache_ts) < _HEALTH_CACHE_TTL:
+        return _health_cache
+
+    results: dict = {}
+
+    # ── Azure OpenAI ────────────────────────────────────────────────────────
+    try:
+        client = create_async_azure_openai_client()
+        deployment = get_azure_openai_deployment_name()
+        await asyncio.wait_for(
+            client.chat.completions.create(
+                model=deployment,
+                messages=[{"role": "user", "content": "ping"}],
+                max_tokens=1,
+            ),
+            timeout=8.0,
+        )
+        results["openai"] = {"status": "ok", "model": deployment}
+    except Exception as exc:
+        results["openai"] = {"status": "degraded", "error": str(exc)[:120]}
+
+    # ── Azure Cosmos DB ─────────────────────────────────────────────────────
+    try:
+        cosmos = create_cosmos_client()
+        db = cosmos.get_database_client("smart-catering")
+        props = await asyncio.get_event_loop().run_in_executor(None, db.read)
+        results["cosmos"] = {"status": "ok", "database": props.get("id", "smart-catering")}
+    except Exception as exc:
+        results["cosmos"] = {"status": "degraded", "error": str(exc)[:120]}
+
+    # ── Azure AI Search ─────────────────────────────────────────────────────
+    try:
+        search = create_search_client(index_name="catering-knowledge-base")
+        count = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: search.get_document_count()
+        )
+        results["search"] = {"status": "ok", "document_count": count}
+    except Exception as exc:
+        results["search"] = {"status": "degraded", "error": str(exc)[:120]}
+
+    overall = "ok" if all(v["status"] == "ok" for v in results.values()) else "degraded"
+    payload = {
+        "status": overall,
+        "services": results,
+        "cached_until": now + _HEALTH_CACHE_TTL,
+        "agent_pipeline": [
+            "concierge", "head_chef", "accountant", "logistics_lead", "stock_manager"
+        ],
+    }
+    _health_cache = payload
+    _health_cache_ts = now
+    return payload
+
 
 
 def _to_raw_customer_request(order: CateringOrderRequest) -> str:

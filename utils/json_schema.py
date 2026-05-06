@@ -158,6 +158,10 @@ class CostReport(BaseModel):
         le=100,
         description="Target catering business margin (industry standard: 30%)",
     )
+    reformulation_exhausted: bool = Field(
+        default=False,
+        description="Set by Accountant when no cheaper reformulation exists; signals engine to exit negotiation early",
+    )
 
 
 class DeliveryStop(BaseModel):

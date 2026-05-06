@@ -12,12 +12,36 @@
       ],
       "dietary_flags": [],
       "ingredients": [
-        {"name": "chicken", "quantity": 1.0, "unit": "kg"},
-        {"name": "soy sauce", "quantity": 0.25, "unit": "L"},
-        {"name": "vinegar", "quantity": 0.25, "unit": "L"},
-        {"name": "garlic", "quantity": 0.08, "unit": "kg"},
-        {"name": "bay leaf", "quantity": 0.005, "unit": "kg"},
-        {"name": "black pepper", "quantity": 0.01, "unit": "kg"}
+        {
+          "name": "chicken",
+          "quantity": 1.0,
+          "unit": "kg"
+        },
+        {
+          "name": "soy sauce",
+          "quantity": 0.25,
+          "unit": "L"
+        },
+        {
+          "name": "vinegar",
+          "quantity": 0.25,
+          "unit": "L"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.08,
+          "unit": "kg"
+        },
+        {
+          "name": "bay leaf",
+          "quantity": 0.005,
+          "unit": "kg"
+        },
+        {
+          "name": "black pepper",
+          "quantity": 0.01,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -28,12 +52,36 @@
       "allergens": [],
       "dietary_flags": [],
       "ingredients": [
-        {"name": "pork", "quantity": 1.0, "unit": "kg"},
-        {"name": "tamarind", "quantity": 0.25, "unit": "kg"},
-        {"name": "tomato", "quantity": 0.3, "unit": "kg"},
-        {"name": "onion", "quantity": 0.2, "unit": "kg"},
-        {"name": "radish", "quantity": 0.3, "unit": "kg"},
-        {"name": "kangkong", "quantity": 0.25, "unit": "kg"}
+        {
+          "name": "pork",
+          "quantity": 1.0,
+          "unit": "kg"
+        },
+        {
+          "name": "tamarind",
+          "quantity": 0.25,
+          "unit": "kg"
+        },
+        {
+          "name": "tomato",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "onion",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "radish",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "kangkong",
+          "quantity": 0.25,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -46,12 +94,36 @@
       ],
       "dietary_flags": [],
       "ingredients": [
-        {"name": "beef", "quantity": 1.0, "unit": "kg"},
-        {"name": "peanut butter", "quantity": 0.3, "unit": "kg"},
-        {"name": "annatto", "quantity": 0.02, "unit": "kg"},
-        {"name": "eggplant", "quantity": 0.4, "unit": "kg"},
-        {"name": "string beans", "quantity": 0.3, "unit": "kg"},
-        {"name": "bok choy", "quantity": 0.25, "unit": "kg"}
+        {
+          "name": "beef",
+          "quantity": 1.0,
+          "unit": "kg"
+        },
+        {
+          "name": "peanut butter",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "annatto",
+          "quantity": 0.02,
+          "unit": "kg"
+        },
+        {
+          "name": "eggplant",
+          "quantity": 0.4,
+          "unit": "kg"
+        },
+        {
+          "name": "string beans",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "bok choy",
+          "quantity": 0.25,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -65,12 +137,36 @@
       ],
       "dietary_flags": [],
       "ingredients": [
-        {"name": "wheat noodles", "quantity": 0.6, "unit": "kg"},
-        {"name": "chicken", "quantity": 0.5, "unit": "kg"},
-        {"name": "cabbage", "quantity": 0.3, "unit": "kg"},
-        {"name": "carrot", "quantity": 0.2, "unit": "kg"},
-        {"name": "soy sauce", "quantity": 0.15, "unit": "L"},
-        {"name": "garlic", "quantity": 0.05, "unit": "kg"}
+        {
+          "name": "wheat noodles",
+          "quantity": 0.6,
+          "unit": "kg"
+        },
+        {
+          "name": "chicken",
+          "quantity": 0.5,
+          "unit": "kg"
+        },
+        {
+          "name": "cabbage",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "carrot",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "soy sauce",
+          "quantity": 0.15,
+          "unit": "L"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.05,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -83,11 +179,31 @@
       ],
       "dietary_flags": [],
       "ingredients": [
-        {"name": "ground pork", "quantity": 0.8, "unit": "kg"},
-        {"name": "spring roll wrapper", "quantity": 0.3, "unit": "kg"},
-        {"name": "carrot", "quantity": 0.15, "unit": "kg"},
-        {"name": "onion", "quantity": 0.15, "unit": "kg"},
-        {"name": "garlic", "quantity": 0.03, "unit": "kg"}
+        {
+          "name": "ground pork",
+          "quantity": 0.8,
+          "unit": "kg"
+        },
+        {
+          "name": "spring roll wrapper",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "carrot",
+          "quantity": 0.15,
+          "unit": "kg"
+        },
+        {
+          "name": "onion",
+          "quantity": 0.15,
+          "unit": "kg"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.03,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -103,11 +219,31 @@
         "vegetarian"
       ],
       "ingredients": [
-        {"name": "taro leaves", "quantity": 0.25, "unit": "kg"},
-        {"name": "coconut milk", "quantity": 0.8, "unit": "L"},
-        {"name": "garlic", "quantity": 0.03, "unit": "kg"},
-        {"name": "ginger", "quantity": 0.03, "unit": "kg"},
-        {"name": "chili", "quantity": 0.01, "unit": "kg"}
+        {
+          "name": "taro leaves",
+          "quantity": 0.25,
+          "unit": "kg"
+        },
+        {
+          "name": "coconut milk",
+          "quantity": 0.8,
+          "unit": "L"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.03,
+          "unit": "kg"
+        },
+        {
+          "name": "ginger",
+          "quantity": 0.03,
+          "unit": "kg"
+        },
+        {
+          "name": "chili",
+          "quantity": 0.01,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -123,11 +259,31 @@
         "vegetarian"
       ],
       "ingredients": [
-        {"name": "squash", "quantity": 0.6, "unit": "kg"},
-        {"name": "string beans", "quantity": 0.3, "unit": "kg"},
-        {"name": "coconut milk", "quantity": 0.6, "unit": "L"},
-        {"name": "onion", "quantity": 0.15, "unit": "kg"},
-        {"name": "garlic", "quantity": 0.03, "unit": "kg"}
+        {
+          "name": "squash",
+          "quantity": 0.6,
+          "unit": "kg"
+        },
+        {
+          "name": "string beans",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "coconut milk",
+          "quantity": 0.6,
+          "unit": "L"
+        },
+        {
+          "name": "onion",
+          "quantity": 0.15,
+          "unit": "kg"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.03,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -141,11 +297,31 @@
       ],
       "dietary_flags": [],
       "ingredients": [
-        {"name": "young coconut", "quantity": 0.6, "unit": "kg"},
-        {"name": "nata de coco", "quantity": 0.4, "unit": "kg"},
-        {"name": "all-purpose cream", "quantity": 0.5, "unit": "L"},
-        {"name": "condensed milk", "quantity": 0.3, "unit": "L"},
-        {"name": "pandan jelly", "quantity": 0.4, "unit": "kg"}
+        {
+          "name": "young coconut",
+          "quantity": 0.6,
+          "unit": "kg"
+        },
+        {
+          "name": "nata de coco",
+          "quantity": 0.4,
+          "unit": "kg"
+        },
+        {
+          "name": "all-purpose cream",
+          "quantity": 0.5,
+          "unit": "L"
+        },
+        {
+          "name": "condensed milk",
+          "quantity": 0.3,
+          "unit": "L"
+        },
+        {
+          "name": "pandan jelly",
+          "quantity": 0.4,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -153,17 +329,51 @@
       "name": "Pinakbet",
       "category": "vegetable",
       "cuisine": "filipino",
-      "dietary_tags": ["vegan", "vegetarian"],
-      "dietary_flags": ["vegan", "vegetarian"],
+      "dietary_tags": [
+        "vegan",
+        "vegetarian"
+      ],
+      "dietary_flags": [
+        "vegan",
+        "vegetarian"
+      ],
       "allergens": [],
       "ingredients": [
-        {"name": "squash", "quantity": 0.3, "unit": "kg"},
-        {"name": "eggplant", "quantity": 0.3, "unit": "kg"},
-        {"name": "string beans", "quantity": 0.2, "unit": "kg"},
-        {"name": "bitter melon", "quantity": 0.2, "unit": "kg"},
-        {"name": "tomato", "quantity": 0.2, "unit": "kg"},
-        {"name": "garlic", "quantity": 0.03, "unit": "kg"},
-        {"name": "onion", "quantity": 0.1, "unit": "kg"}
+        {
+          "name": "squash",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "eggplant",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "string beans",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "bitter melon",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "tomato",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.03,
+          "unit": "kg"
+        },
+        {
+          "name": "onion",
+          "quantity": 0.1,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -171,14 +381,38 @@
       "name": "Sinangag",
       "category": "rice",
       "cuisine": "filipino",
-      "dietary_tags": ["vegan", "vegetarian", "halal"],
-      "dietary_flags": ["vegan", "vegetarian", "halal"],
+      "dietary_tags": [
+        "vegan",
+        "vegetarian",
+        "halal"
+      ],
+      "dietary_flags": [
+        "vegan",
+        "vegetarian",
+        "halal"
+      ],
       "allergens": [],
       "ingredients": [
-        {"name": "rice", "quantity": 0.5, "unit": "kg"},
-        {"name": "garlic", "quantity": 0.05, "unit": "kg"},
-        {"name": "vegetable oil", "quantity": 0.05, "unit": "L"},
-        {"name": "salt", "quantity": 0.01, "unit": "kg"}
+        {
+          "name": "rice",
+          "quantity": 0.5,
+          "unit": "kg"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.05,
+          "unit": "kg"
+        },
+        {
+          "name": "vegetable oil",
+          "quantity": 0.05,
+          "unit": "L"
+        },
+        {
+          "name": "salt",
+          "quantity": 0.01,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -186,16 +420,50 @@
       "name": "Lumpiang Gulay",
       "category": "appetizer",
       "cuisine": "filipino",
-      "dietary_tags": ["vegan", "vegetarian", "halal"],
-      "dietary_flags": ["vegan", "vegetarian", "halal"],
-      "allergens": ["gluten"],
+      "dietary_tags": [
+        "vegan",
+        "vegetarian",
+        "halal"
+      ],
+      "dietary_flags": [
+        "vegan",
+        "vegetarian",
+        "halal"
+      ],
+      "allergens": [
+        "gluten"
+      ],
       "ingredients": [
-        {"name": "cabbage", "quantity": 0.3, "unit": "kg"},
-        {"name": "carrot", "quantity": 0.2, "unit": "kg"},
-        {"name": "green beans", "quantity": 0.2, "unit": "kg"},
-        {"name": "spring roll wrapper", "quantity": 0.3, "unit": "kg"},
-        {"name": "garlic", "quantity": 0.03, "unit": "kg"},
-        {"name": "onion", "quantity": 0.1, "unit": "kg"}
+        {
+          "name": "cabbage",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "carrot",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "green beans",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "spring roll wrapper",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.03,
+          "unit": "kg"
+        },
+        {
+          "name": "onion",
+          "quantity": 0.1,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -203,17 +471,49 @@
       "name": "Beef Kaldereta",
       "category": "main",
       "cuisine": "filipino",
-      "dietary_tags": ["halal"],
-      "dietary_flags": ["halal"],
+      "dietary_tags": [
+        "halal"
+      ],
+      "dietary_flags": [
+        "halal"
+      ],
       "allergens": [],
       "ingredients": [
-        {"name": "beef", "quantity": 1.0, "unit": "kg"},
-        {"name": "tomato", "quantity": 0.3, "unit": "kg"},
-        {"name": "carrot", "quantity": 0.2, "unit": "kg"},
-        {"name": "potato", "quantity": 0.3, "unit": "kg"},
-        {"name": "garlic", "quantity": 0.05, "unit": "kg"},
-        {"name": "onion", "quantity": 0.15, "unit": "kg"},
-        {"name": "tomato paste", "quantity": 0.1, "unit": "kg"}
+        {
+          "name": "beef",
+          "quantity": 1.0,
+          "unit": "kg"
+        },
+        {
+          "name": "tomato",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "carrot",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "potato",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.05,
+          "unit": "kg"
+        },
+        {
+          "name": "onion",
+          "quantity": 0.15,
+          "unit": "kg"
+        },
+        {
+          "name": "tomato paste",
+          "quantity": 0.1,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -221,16 +521,44 @@
       "name": "Chicken Tinola",
       "category": "main",
       "cuisine": "filipino",
-      "dietary_tags": ["halal"],
-      "dietary_flags": ["halal"],
+      "dietary_tags": [
+        "halal"
+      ],
+      "dietary_flags": [
+        "halal"
+      ],
       "allergens": [],
       "ingredients": [
-        {"name": "chicken", "quantity": 1.0, "unit": "kg"},
-        {"name": "ginger", "quantity": 0.05, "unit": "kg"},
-        {"name": "garlic", "quantity": 0.05, "unit": "kg"},
-        {"name": "onion", "quantity": 0.1, "unit": "kg"},
-        {"name": "sayote", "quantity": 0.3, "unit": "kg"},
-        {"name": "malunggay", "quantity": 0.1, "unit": "kg"}
+        {
+          "name": "chicken",
+          "quantity": 1.0,
+          "unit": "kg"
+        },
+        {
+          "name": "ginger",
+          "quantity": 0.05,
+          "unit": "kg"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.05,
+          "unit": "kg"
+        },
+        {
+          "name": "onion",
+          "quantity": 0.1,
+          "unit": "kg"
+        },
+        {
+          "name": "sayote",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "malunggay",
+          "quantity": 0.1,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -246,12 +574,36 @@
         "vegetarian"
       ],
       "ingredients": [
-        {"name": "romaine lettuce", "quantity": 1.0, "unit": "kg"},
-        {"name": "croutons", "quantity": 0.3, "unit": "kg"},
-        {"name": "parmesan", "quantity": 0.2, "unit": "kg"},
-        {"name": "olive oil", "quantity": 0.1, "unit": "L"},
-        {"name": "lemon", "quantity": 0.1, "unit": "kg"},
-        {"name": "garlic", "quantity": 0.05, "unit": "kg"}
+        {
+          "name": "romaine lettuce",
+          "quantity": 1.0,
+          "unit": "kg"
+        },
+        {
+          "name": "croutons",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "parmesan",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "olive oil",
+          "quantity": 0.1,
+          "unit": "L"
+        },
+        {
+          "name": "lemon",
+          "quantity": 0.1,
+          "unit": "kg"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.05,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -264,11 +616,31 @@
         "halal"
       ],
       "ingredients": [
-        {"name": "chicken", "quantity": 1.5, "unit": "kg"},
-        {"name": "olive oil", "quantity": 0.1, "unit": "L"},
-        {"name": "garlic", "quantity": 0.05, "unit": "kg"},
-        {"name": "black pepper", "quantity": 0.01, "unit": "kg"},
-        {"name": "lemon", "quantity": 0.1, "unit": "kg"}
+        {
+          "name": "chicken",
+          "quantity": 1.5,
+          "unit": "kg"
+        },
+        {
+          "name": "olive oil",
+          "quantity": 0.1,
+          "unit": "L"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.05,
+          "unit": "kg"
+        },
+        {
+          "name": "black pepper",
+          "quantity": 0.01,
+          "unit": "kg"
+        },
+        {
+          "name": "lemon",
+          "quantity": 0.1,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -283,11 +655,31 @@
       ],
       "dietary_tags": [],
       "ingredients": [
-        {"name": "pasta", "quantity": 1.0, "unit": "kg"},
-        {"name": "egg", "quantity": 0.2, "unit": "kg"},
-        {"name": "parmesan", "quantity": 0.2, "unit": "kg"},
-        {"name": "cream", "quantity": 0.3, "unit": "L"},
-        {"name": "black pepper", "quantity": 0.01, "unit": "kg"}
+        {
+          "name": "pasta",
+          "quantity": 1.0,
+          "unit": "kg"
+        },
+        {
+          "name": "egg",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "parmesan",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "cream",
+          "quantity": 0.3,
+          "unit": "L"
+        },
+        {
+          "name": "black pepper",
+          "quantity": 0.01,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -302,12 +694,36 @@
         "halal"
       ],
       "ingredients": [
-        {"name": "carrot", "quantity": 0.6, "unit": "kg"},
-        {"name": "zucchini", "quantity": 0.6, "unit": "kg"},
-        {"name": "bell pepper", "quantity": 0.5, "unit": "kg"},
-        {"name": "olive oil", "quantity": 0.1, "unit": "L"},
-        {"name": "black pepper", "quantity": 0.01, "unit": "kg"},
-        {"name": "salt", "quantity": 0.01, "unit": "kg"}
+        {
+          "name": "carrot",
+          "quantity": 0.6,
+          "unit": "kg"
+        },
+        {
+          "name": "zucchini",
+          "quantity": 0.6,
+          "unit": "kg"
+        },
+        {
+          "name": "bell pepper",
+          "quantity": 0.5,
+          "unit": "kg"
+        },
+        {
+          "name": "olive oil",
+          "quantity": 0.1,
+          "unit": "L"
+        },
+        {
+          "name": "black pepper",
+          "quantity": 0.01,
+          "unit": "kg"
+        },
+        {
+          "name": "salt",
+          "quantity": 0.01,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -324,12 +740,36 @@
         "vegetarian"
       ],
       "ingredients": [
-        {"name": "flour", "quantity": 1.0, "unit": "kg"},
-        {"name": "cocoa powder", "quantity": 0.2, "unit": "kg"},
-        {"name": "sugar", "quantity": 0.5, "unit": "kg"},
-        {"name": "butter", "quantity": 0.2, "unit": "kg"},
-        {"name": "milk", "quantity": 0.3, "unit": "L"},
-        {"name": "egg", "quantity": 0.2, "unit": "kg"}
+        {
+          "name": "flour",
+          "quantity": 1.0,
+          "unit": "kg"
+        },
+        {
+          "name": "cocoa powder",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "sugar",
+          "quantity": 0.5,
+          "unit": "kg"
+        },
+        {
+          "name": "butter",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "milk",
+          "quantity": 0.3,
+          "unit": "L"
+        },
+        {
+          "name": "egg",
+          "quantity": 0.2,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -344,11 +784,31 @@
         "vegetarian"
       ],
       "ingredients": [
-        {"name": "spring roll wrapper", "quantity": 1.0, "unit": "kg"},
-        {"name": "cabbage", "quantity": 0.6, "unit": "kg"},
-        {"name": "carrot", "quantity": 0.4, "unit": "kg"},
-        {"name": "onion", "quantity": 0.2, "unit": "kg"},
-        {"name": "garlic", "quantity": 0.05, "unit": "kg"}
+        {
+          "name": "spring roll wrapper",
+          "quantity": 1.0,
+          "unit": "kg"
+        },
+        {
+          "name": "cabbage",
+          "quantity": 0.6,
+          "unit": "kg"
+        },
+        {
+          "name": "carrot",
+          "quantity": 0.4,
+          "unit": "kg"
+        },
+        {
+          "name": "onion",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.05,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -361,11 +821,31 @@
       ],
       "dietary_tags": [],
       "ingredients": [
-        {"name": "beef", "quantity": 1.2, "unit": "kg"},
-        {"name": "soy sauce", "quantity": 0.2, "unit": "L"},
-        {"name": "broccoli", "quantity": 0.6, "unit": "kg"},
-        {"name": "garlic", "quantity": 0.05, "unit": "kg"},
-        {"name": "onion", "quantity": 0.2, "unit": "kg"}
+        {
+          "name": "beef",
+          "quantity": 1.2,
+          "unit": "kg"
+        },
+        {
+          "name": "soy sauce",
+          "quantity": 0.2,
+          "unit": "L"
+        },
+        {
+          "name": "broccoli",
+          "quantity": 0.6,
+          "unit": "kg"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.05,
+          "unit": "kg"
+        },
+        {
+          "name": "onion",
+          "quantity": 0.2,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -379,12 +859,36 @@
       ],
       "dietary_tags": [],
       "ingredients": [
-        {"name": "rice", "quantity": 1.5, "unit": "kg"},
-        {"name": "egg", "quantity": 0.2, "unit": "kg"},
-        {"name": "soy sauce", "quantity": 0.2, "unit": "L"},
-        {"name": "carrot", "quantity": 0.3, "unit": "kg"},
-        {"name": "peas", "quantity": 0.3, "unit": "kg"},
-        {"name": "onion", "quantity": 0.2, "unit": "kg"}
+        {
+          "name": "rice",
+          "quantity": 1.5,
+          "unit": "kg"
+        },
+        {
+          "name": "egg",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "soy sauce",
+          "quantity": 0.2,
+          "unit": "L"
+        },
+        {
+          "name": "carrot",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "peas",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "onion",
+          "quantity": 0.2,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -399,10 +903,26 @@
         "halal"
       ],
       "ingredients": [
-        {"name": "broccoli", "quantity": 0.7, "unit": "kg"},
-        {"name": "carrot", "quantity": 0.5, "unit": "kg"},
-        {"name": "cauliflower", "quantity": 0.7, "unit": "kg"},
-        {"name": "salt", "quantity": 0.01, "unit": "kg"}
+        {
+          "name": "broccoli",
+          "quantity": 0.7,
+          "unit": "kg"
+        },
+        {
+          "name": "carrot",
+          "quantity": 0.5,
+          "unit": "kg"
+        },
+        {
+          "name": "cauliflower",
+          "quantity": 0.7,
+          "unit": "kg"
+        },
+        {
+          "name": "salt",
+          "quantity": 0.01,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -417,10 +937,26 @@
         "halal"
       ],
       "ingredients": [
-        {"name": "apple", "quantity": 0.5, "unit": "kg"},
-        {"name": "banana", "quantity": 0.5, "unit": "kg"},
-        {"name": "orange", "quantity": 0.5, "unit": "kg"},
-        {"name": "grapes", "quantity": 0.4, "unit": "kg"}
+        {
+          "name": "apple",
+          "quantity": 0.5,
+          "unit": "kg"
+        },
+        {
+          "name": "banana",
+          "quantity": 0.5,
+          "unit": "kg"
+        },
+        {
+          "name": "orange",
+          "quantity": 0.5,
+          "unit": "kg"
+        },
+        {
+          "name": "grapes",
+          "quantity": 0.4,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -428,14 +964,39 @@
       "name": "Leche Flan",
       "cuisine": "filipino",
       "category": "dessert",
-      "allergens": ["egg", "dairy"],
-      "dietary_flags": ["vegetarian"],
+      "allergens": [
+        "egg",
+        "dairy"
+      ],
+      "dietary_flags": [
+        "vegetarian"
+      ],
       "ingredients": [
-        {"name": "egg yolk", "quantity": 0.3, "unit": "kg"},
-        {"name": "condensed milk", "quantity": 0.4, "unit": "L"},
-        {"name": "evaporated milk", "quantity": 0.3, "unit": "L"},
-        {"name": "sugar", "quantity": 0.2, "unit": "kg"},
-        {"name": "vanilla extract", "quantity": 0.01, "unit": "L"}
+        {
+          "name": "egg yolk",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "condensed milk",
+          "quantity": 0.4,
+          "unit": "L"
+        },
+        {
+          "name": "evaporated milk",
+          "quantity": 0.3,
+          "unit": "L"
+        },
+        {
+          "name": "sugar",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "vanilla extract",
+          "quantity": 0.01,
+          "unit": "L"
+        }
       ]
     },
     {
@@ -443,14 +1004,40 @@
       "name": "Mango Shortcake",
       "cuisine": "filipino",
       "category": "dessert",
-      "allergens": ["dairy", "gluten", "egg"],
-      "dietary_flags": ["vegetarian"],
+      "allergens": [
+        "dairy",
+        "gluten",
+        "egg"
+      ],
+      "dietary_flags": [
+        "vegetarian"
+      ],
       "ingredients": [
-        {"name": "all-purpose cream", "quantity": 0.5, "unit": "L"},
-        {"name": "mango", "quantity": 0.8, "unit": "kg"},
-        {"name": "cake base", "quantity": 0.4, "unit": "kg"},
-        {"name": "sugar", "quantity": 0.15, "unit": "kg"},
-        {"name": "condensed milk", "quantity": 0.2, "unit": "L"}
+        {
+          "name": "all-purpose cream",
+          "quantity": 0.5,
+          "unit": "L"
+        },
+        {
+          "name": "mango",
+          "quantity": 0.8,
+          "unit": "kg"
+        },
+        {
+          "name": "cake base",
+          "quantity": 0.4,
+          "unit": "kg"
+        },
+        {
+          "name": "sugar",
+          "quantity": 0.15,
+          "unit": "kg"
+        },
+        {
+          "name": "condensed milk",
+          "quantity": 0.2,
+          "unit": "L"
+        }
       ]
     },
     {
@@ -458,16 +1045,49 @@
       "name": "Halo-Halo",
       "cuisine": "filipino",
       "category": "dessert",
-      "allergens": ["dairy", "egg"],
-      "dietary_flags": ["vegetarian"],
+      "allergens": [
+        "dairy",
+        "egg"
+      ],
+      "dietary_flags": [
+        "vegetarian"
+      ],
       "ingredients": [
-        {"name": "shaved ice", "quantity": 0.5, "unit": "kg"},
-        {"name": "evaporated milk", "quantity": 0.3, "unit": "L"},
-        {"name": "ube halaya", "quantity": 0.2, "unit": "kg"},
-        {"name": "nata de coco", "quantity": 0.2, "unit": "kg"},
-        {"name": "sweetened beans", "quantity": 0.2, "unit": "kg"},
-        {"name": "leche flan", "quantity": 0.15, "unit": "kg"},
-        {"name": "young coconut", "quantity": 0.2, "unit": "kg"}
+        {
+          "name": "shaved ice",
+          "quantity": 0.5,
+          "unit": "kg"
+        },
+        {
+          "name": "evaporated milk",
+          "quantity": 0.3,
+          "unit": "L"
+        },
+        {
+          "name": "ube halaya",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "nata de coco",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "sweetened beans",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "leche flan",
+          "quantity": 0.15,
+          "unit": "kg"
+        },
+        {
+          "name": "young coconut",
+          "quantity": 0.2,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -475,15 +1095,43 @@
       "name": "Beef Nilaga",
       "cuisine": "filipino",
       "category": "soup",
-      "allergens": ["fish"],
-      "dietary_flags": ["halal"],
+      "allergens": [
+        "fish"
+      ],
+      "dietary_flags": [
+        "halal"
+      ],
       "ingredients": [
-        {"name": "beef", "quantity": 1.0, "unit": "kg"},
-        {"name": "potato", "quantity": 0.4, "unit": "kg"},
-        {"name": "cabbage", "quantity": 0.3, "unit": "kg"},
-        {"name": "onion", "quantity": 0.2, "unit": "kg"},
-        {"name": "peppercorn", "quantity": 0.01, "unit": "kg"},
-        {"name": "fish sauce", "quantity": 0.05, "unit": "L"}
+        {
+          "name": "beef",
+          "quantity": 1.0,
+          "unit": "kg"
+        },
+        {
+          "name": "potato",
+          "quantity": 0.4,
+          "unit": "kg"
+        },
+        {
+          "name": "cabbage",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "onion",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "peppercorn",
+          "quantity": 0.01,
+          "unit": "kg"
+        },
+        {
+          "name": "fish sauce",
+          "quantity": 0.05,
+          "unit": "L"
+        }
       ]
     },
     {
@@ -491,16 +1139,48 @@
       "name": "Arroz Caldo",
       "cuisine": "filipino",
       "category": "soup",
-      "allergens": ["fish"],
-      "dietary_flags": ["halal"],
+      "allergens": [
+        "fish"
+      ],
+      "dietary_flags": [
+        "halal"
+      ],
       "ingredients": [
-        {"name": "rice", "quantity": 0.5, "unit": "kg"},
-        {"name": "chicken", "quantity": 0.8, "unit": "kg"},
-        {"name": "ginger", "quantity": 0.08, "unit": "kg"},
-        {"name": "garlic", "quantity": 0.05, "unit": "kg"},
-        {"name": "onion", "quantity": 0.15, "unit": "kg"},
-        {"name": "fish sauce", "quantity": 0.05, "unit": "L"},
-        {"name": "scallions", "quantity": 0.05, "unit": "kg"}
+        {
+          "name": "rice",
+          "quantity": 0.5,
+          "unit": "kg"
+        },
+        {
+          "name": "chicken",
+          "quantity": 0.8,
+          "unit": "kg"
+        },
+        {
+          "name": "ginger",
+          "quantity": 0.08,
+          "unit": "kg"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.05,
+          "unit": "kg"
+        },
+        {
+          "name": "onion",
+          "quantity": 0.15,
+          "unit": "kg"
+        },
+        {
+          "name": "fish sauce",
+          "quantity": 0.05,
+          "unit": "L"
+        },
+        {
+          "name": "scallions",
+          "quantity": 0.05,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -508,16 +1188,48 @@
       "name": "Baked Macaroni",
       "cuisine": "filipino",
       "category": "pasta",
-      "allergens": ["gluten", "dairy", "egg"],
+      "allergens": [
+        "gluten",
+        "dairy",
+        "egg"
+      ],
       "dietary_flags": [],
       "ingredients": [
-        {"name": "elbow macaroni", "quantity": 0.8, "unit": "kg"},
-        {"name": "ground pork", "quantity": 0.6, "unit": "kg"},
-        {"name": "all-purpose cream", "quantity": 0.4, "unit": "L"},
-        {"name": "cheese", "quantity": 0.3, "unit": "kg"},
-        {"name": "tomato sauce", "quantity": 0.4, "unit": "kg"},
-        {"name": "onion", "quantity": 0.15, "unit": "kg"},
-        {"name": "garlic", "quantity": 0.05, "unit": "kg"}
+        {
+          "name": "elbow macaroni",
+          "quantity": 0.8,
+          "unit": "kg"
+        },
+        {
+          "name": "ground pork",
+          "quantity": 0.6,
+          "unit": "kg"
+        },
+        {
+          "name": "all-purpose cream",
+          "quantity": 0.4,
+          "unit": "L"
+        },
+        {
+          "name": "cheese",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "tomato sauce",
+          "quantity": 0.4,
+          "unit": "kg"
+        },
+        {
+          "name": "onion",
+          "quantity": 0.15,
+          "unit": "kg"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.05,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -525,16 +1237,47 @@
       "name": "Sweet Filipino Spaghetti",
       "cuisine": "filipino",
       "category": "pasta",
-      "allergens": ["gluten", "dairy"],
+      "allergens": [
+        "gluten",
+        "dairy"
+      ],
       "dietary_flags": [],
       "ingredients": [
-        {"name": "spaghetti noodles", "quantity": 0.8, "unit": "kg"},
-        {"name": "ground pork", "quantity": 0.5, "unit": "kg"},
-        {"name": "hotdog", "quantity": 0.3, "unit": "kg"},
-        {"name": "tomato sauce", "quantity": 0.5, "unit": "kg"},
-        {"name": "banana ketchup", "quantity": 0.2, "unit": "kg"},
-        {"name": "cheese", "quantity": 0.2, "unit": "kg"},
-        {"name": "onion", "quantity": 0.15, "unit": "kg"}
+        {
+          "name": "spaghetti noodles",
+          "quantity": 0.8,
+          "unit": "kg"
+        },
+        {
+          "name": "ground pork",
+          "quantity": 0.5,
+          "unit": "kg"
+        },
+        {
+          "name": "hotdog",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "tomato sauce",
+          "quantity": 0.5,
+          "unit": "kg"
+        },
+        {
+          "name": "banana ketchup",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "cheese",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "onion",
+          "quantity": 0.15,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -542,16 +1285,49 @@
       "name": "Roast Beef with Mushroom Gravy",
       "cuisine": "filipino",
       "category": "main",
-      "allergens": ["gluten", "dairy"],
-      "dietary_flags": ["halal"],
+      "allergens": [
+        "gluten",
+        "dairy"
+      ],
+      "dietary_flags": [
+        "halal"
+      ],
       "ingredients": [
-        {"name": "beef", "quantity": 1.2, "unit": "kg"},
-        {"name": "mushroom", "quantity": 0.3, "unit": "kg"},
-        {"name": "onion", "quantity": 0.2, "unit": "kg"},
-        {"name": "garlic", "quantity": 0.05, "unit": "kg"},
-        {"name": "butter", "quantity": 0.1, "unit": "kg"},
-        {"name": "all-purpose flour", "quantity": 0.05, "unit": "kg"},
-        {"name": "beef broth", "quantity": 0.5, "unit": "L"}
+        {
+          "name": "beef",
+          "quantity": 1.2,
+          "unit": "kg"
+        },
+        {
+          "name": "mushroom",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "onion",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.05,
+          "unit": "kg"
+        },
+        {
+          "name": "butter",
+          "quantity": 0.1,
+          "unit": "kg"
+        },
+        {
+          "name": "all-purpose flour",
+          "quantity": 0.05,
+          "unit": "kg"
+        },
+        {
+          "name": "beef broth",
+          "quantity": 0.5,
+          "unit": "L"
+        }
       ]
     },
     {
@@ -559,16 +1335,48 @@
       "name": "Chicken Cordon Bleu",
       "cuisine": "filipino",
       "category": "main",
-      "allergens": ["gluten", "dairy", "egg"],
+      "allergens": [
+        "gluten",
+        "dairy",
+        "egg"
+      ],
       "dietary_flags": [],
       "ingredients": [
-        {"name": "chicken", "quantity": 1.2, "unit": "kg"},
-        {"name": "ham", "quantity": 0.3, "unit": "kg"},
-        {"name": "cheese", "quantity": 0.2, "unit": "kg"},
-        {"name": "breadcrumbs", "quantity": 0.2, "unit": "kg"},
-        {"name": "egg", "quantity": 0.1, "unit": "kg"},
-        {"name": "all-purpose flour", "quantity": 0.1, "unit": "kg"},
-        {"name": "butter", "quantity": 0.08, "unit": "kg"}
+        {
+          "name": "chicken",
+          "quantity": 1.2,
+          "unit": "kg"
+        },
+        {
+          "name": "ham",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "cheese",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "breadcrumbs",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "egg",
+          "quantity": 0.1,
+          "unit": "kg"
+        },
+        {
+          "name": "all-purpose flour",
+          "quantity": 0.1,
+          "unit": "kg"
+        },
+        {
+          "name": "butter",
+          "quantity": 0.08,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -576,15 +1384,41 @@
       "name": "Beef Bistek Tagalog",
       "cuisine": "filipino",
       "category": "main",
-      "allergens": ["soy"],
+      "allergens": [
+        "soy"
+      ],
       "dietary_flags": [],
       "ingredients": [
-        {"name": "beef sirloin", "quantity": 1.0, "unit": "kg"},
-        {"name": "calamansi juice", "quantity": 0.1, "unit": "L"},
-        {"name": "soy sauce", "quantity": 0.15, "unit": "L"},
-        {"name": "onion", "quantity": 0.4, "unit": "kg"},
-        {"name": "garlic", "quantity": 0.05, "unit": "kg"},
-        {"name": "black pepper", "quantity": 0.01, "unit": "kg"}
+        {
+          "name": "beef sirloin",
+          "quantity": 1.0,
+          "unit": "kg"
+        },
+        {
+          "name": "calamansi juice",
+          "quantity": 0.1,
+          "unit": "L"
+        },
+        {
+          "name": "soy sauce",
+          "quantity": 0.15,
+          "unit": "L"
+        },
+        {
+          "name": "onion",
+          "quantity": 0.4,
+          "unit": "kg"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.05,
+          "unit": "kg"
+        },
+        {
+          "name": "black pepper",
+          "quantity": 0.01,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -592,15 +1426,45 @@
       "name": "Mushroom Adobo",
       "cuisine": "filipino",
       "category": "main",
-      "allergens": ["soy"],
-      "dietary_flags": ["vegan", "vegetarian", "halal"],
+      "allergens": [
+        "soy"
+      ],
+      "dietary_flags": [
+        "vegan",
+        "vegetarian",
+        "halal"
+      ],
       "ingredients": [
-        {"name": "mushroom", "quantity": 1.0, "unit": "kg"},
-        {"name": "soy sauce", "quantity": 0.2, "unit": "L"},
-        {"name": "vinegar", "quantity": 0.15, "unit": "L"},
-        {"name": "garlic", "quantity": 0.08, "unit": "kg"},
-        {"name": "bay leaf", "quantity": 0.005, "unit": "kg"},
-        {"name": "black pepper", "quantity": 0.01, "unit": "kg"}
+        {
+          "name": "mushroom",
+          "quantity": 1.0,
+          "unit": "kg"
+        },
+        {
+          "name": "soy sauce",
+          "quantity": 0.2,
+          "unit": "L"
+        },
+        {
+          "name": "vinegar",
+          "quantity": 0.15,
+          "unit": "L"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.08,
+          "unit": "kg"
+        },
+        {
+          "name": "bay leaf",
+          "quantity": 0.005,
+          "unit": "kg"
+        },
+        {
+          "name": "black pepper",
+          "quantity": 0.01,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -608,15 +1472,45 @@
       "name": "Tofu Sisig",
       "cuisine": "filipino",
       "category": "main",
-      "allergens": ["soy"],
-      "dietary_flags": ["vegan", "vegetarian", "halal"],
+      "allergens": [
+        "soy"
+      ],
+      "dietary_flags": [
+        "vegan",
+        "vegetarian",
+        "halal"
+      ],
       "ingredients": [
-        {"name": "tofu", "quantity": 1.0, "unit": "kg"},
-        {"name": "onion", "quantity": 0.3, "unit": "kg"},
-        {"name": "chili", "quantity": 0.05, "unit": "kg"},
-        {"name": "calamansi juice", "quantity": 0.08, "unit": "L"},
-        {"name": "soy sauce", "quantity": 0.1, "unit": "L"},
-        {"name": "garlic", "quantity": 0.05, "unit": "kg"}
+        {
+          "name": "tofu",
+          "quantity": 1.0,
+          "unit": "kg"
+        },
+        {
+          "name": "onion",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "chili",
+          "quantity": 0.05,
+          "unit": "kg"
+        },
+        {
+          "name": "calamansi juice",
+          "quantity": 0.08,
+          "unit": "L"
+        },
+        {
+          "name": "soy sauce",
+          "quantity": 0.1,
+          "unit": "L"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.05,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -624,14 +1518,40 @@
       "name": "Adobong Kangkong",
       "cuisine": "filipino",
       "category": "vegetable",
-      "allergens": ["soy"],
-      "dietary_flags": ["vegan", "vegetarian", "halal"],
+      "allergens": [
+        "soy"
+      ],
+      "dietary_flags": [
+        "vegan",
+        "vegetarian",
+        "halal"
+      ],
       "ingredients": [
-        {"name": "kangkong", "quantity": 0.8, "unit": "kg"},
-        {"name": "soy sauce", "quantity": 0.1, "unit": "L"},
-        {"name": "vinegar", "quantity": 0.08, "unit": "L"},
-        {"name": "garlic", "quantity": 0.05, "unit": "kg"},
-        {"name": "onion", "quantity": 0.1, "unit": "kg"}
+        {
+          "name": "kangkong",
+          "quantity": 0.8,
+          "unit": "kg"
+        },
+        {
+          "name": "soy sauce",
+          "quantity": 0.1,
+          "unit": "L"
+        },
+        {
+          "name": "vinegar",
+          "quantity": 0.08,
+          "unit": "L"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.05,
+          "unit": "kg"
+        },
+        {
+          "name": "onion",
+          "quantity": 0.1,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -640,15 +1560,45 @@
       "cuisine": "filipino",
       "category": "main",
       "allergens": [],
-      "dietary_flags": ["halal"],
+      "dietary_flags": [
+        "halal"
+      ],
       "ingredients": [
-        {"name": "chicken", "quantity": 1.2, "unit": "kg"},
-        {"name": "lemongrass", "quantity": 0.1, "unit": "kg"},
-        {"name": "ginger", "quantity": 0.06, "unit": "kg"},
-        {"name": "garlic", "quantity": 0.06, "unit": "kg"},
-        {"name": "vinegar", "quantity": 0.1, "unit": "L"},
-        {"name": "calamansi juice", "quantity": 0.08, "unit": "L"},
-        {"name": "annatto", "quantity": 0.02, "unit": "kg"}
+        {
+          "name": "chicken",
+          "quantity": 1.2,
+          "unit": "kg"
+        },
+        {
+          "name": "lemongrass",
+          "quantity": 0.1,
+          "unit": "kg"
+        },
+        {
+          "name": "ginger",
+          "quantity": 0.06,
+          "unit": "kg"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.06,
+          "unit": "kg"
+        },
+        {
+          "name": "vinegar",
+          "quantity": 0.1,
+          "unit": "L"
+        },
+        {
+          "name": "calamansi juice",
+          "quantity": 0.08,
+          "unit": "L"
+        },
+        {
+          "name": "annatto",
+          "quantity": 0.02,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -656,16 +1606,47 @@
       "name": "Pancit Bihon Guisado",
       "cuisine": "filipino",
       "category": "noodles",
-      "allergens": ["gluten", "soy"],
+      "allergens": [
+        "gluten",
+        "soy"
+      ],
       "dietary_flags": [],
       "ingredients": [
-        {"name": "rice noodles", "quantity": 0.6, "unit": "kg"},
-        {"name": "chicken", "quantity": 0.4, "unit": "kg"},
-        {"name": "cabbage", "quantity": 0.3, "unit": "kg"},
-        {"name": "carrot", "quantity": 0.2, "unit": "kg"},
-        {"name": "soy sauce", "quantity": 0.12, "unit": "L"},
-        {"name": "garlic", "quantity": 0.05, "unit": "kg"},
-        {"name": "onion", "quantity": 0.15, "unit": "kg"}
+        {
+          "name": "rice noodles",
+          "quantity": 0.6,
+          "unit": "kg"
+        },
+        {
+          "name": "chicken",
+          "quantity": 0.4,
+          "unit": "kg"
+        },
+        {
+          "name": "cabbage",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "carrot",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "soy sauce",
+          "quantity": 0.12,
+          "unit": "L"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.05,
+          "unit": "kg"
+        },
+        {
+          "name": "onion",
+          "quantity": 0.15,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -673,17 +1654,55 @@
       "name": "Yangzhou Fried Rice",
       "cuisine": "chinese",
       "category": "rice",
-      "allergens": ["egg", "soy", "shellfish"],
-      "dietary_flags": ["halal"],
+      "allergens": [
+        "egg",
+        "soy",
+        "shellfish"
+      ],
+      "dietary_flags": [
+        "halal"
+      ],
       "ingredients": [
-        {"name": "rice", "quantity": 1.5, "unit": "kg"},
-        {"name": "egg", "quantity": 0.2, "unit": "kg"},
-        {"name": "shrimp", "quantity": 0.3, "unit": "kg"},
-        {"name": "chicken strips", "quantity": 0.2, "unit": "kg"},
-        {"name": "peas", "quantity": 0.15, "unit": "kg"},
-        {"name": "carrot", "quantity": 0.15, "unit": "kg"},
-        {"name": "soy sauce", "quantity": 0.08, "unit": "L"},
-        {"name": "sesame oil", "quantity": 0.03, "unit": "L"}
+        {
+          "name": "rice",
+          "quantity": 1.5,
+          "unit": "kg"
+        },
+        {
+          "name": "egg",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "shrimp",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "chicken strips",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "peas",
+          "quantity": 0.15,
+          "unit": "kg"
+        },
+        {
+          "name": "carrot",
+          "quantity": 0.15,
+          "unit": "kg"
+        },
+        {
+          "name": "soy sauce",
+          "quantity": 0.08,
+          "unit": "L"
+        },
+        {
+          "name": "sesame oil",
+          "quantity": 0.03,
+          "unit": "L"
+        }
       ]
     },
     {
@@ -691,17 +1710,52 @@
       "name": "Kung Pao Chicken",
       "cuisine": "chinese",
       "category": "main",
-      "allergens": ["peanut", "soy"],
+      "allergens": [
+        "peanut",
+        "soy"
+      ],
       "dietary_flags": [],
       "ingredients": [
-        {"name": "chicken", "quantity": 1.0, "unit": "kg"},
-        {"name": "peanuts", "quantity": 0.15, "unit": "kg"},
-        {"name": "dried chili", "quantity": 0.03, "unit": "kg"},
-        {"name": "soy sauce", "quantity": 0.15, "unit": "L"},
-        {"name": "vinegar", "quantity": 0.08, "unit": "L"},
-        {"name": "garlic", "quantity": 0.05, "unit": "kg"},
-        {"name": "ginger", "quantity": 0.04, "unit": "kg"},
-        {"name": "sesame oil", "quantity": 0.03, "unit": "L"}
+        {
+          "name": "chicken",
+          "quantity": 1.0,
+          "unit": "kg"
+        },
+        {
+          "name": "peanuts",
+          "quantity": 0.15,
+          "unit": "kg"
+        },
+        {
+          "name": "dried chili",
+          "quantity": 0.03,
+          "unit": "kg"
+        },
+        {
+          "name": "soy sauce",
+          "quantity": 0.15,
+          "unit": "L"
+        },
+        {
+          "name": "vinegar",
+          "quantity": 0.08,
+          "unit": "L"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.05,
+          "unit": "kg"
+        },
+        {
+          "name": "ginger",
+          "quantity": 0.04,
+          "unit": "kg"
+        },
+        {
+          "name": "sesame oil",
+          "quantity": 0.03,
+          "unit": "L"
+        }
       ]
     },
     {
@@ -709,15 +1763,44 @@
       "name": "Steamed Fish in Soy Sauce",
       "cuisine": "chinese",
       "category": "main",
-      "allergens": ["soy", "fish"],
-      "dietary_flags": ["halal"],
+      "allergens": [
+        "soy",
+        "fish"
+      ],
+      "dietary_flags": [
+        "halal"
+      ],
       "ingredients": [
-        {"name": "whole fish", "quantity": 1.2, "unit": "kg"},
-        {"name": "soy sauce", "quantity": 0.15, "unit": "L"},
-        {"name": "ginger", "quantity": 0.06, "unit": "kg"},
-        {"name": "scallions", "quantity": 0.08, "unit": "kg"},
-        {"name": "sesame oil", "quantity": 0.03, "unit": "L"},
-        {"name": "garlic", "quantity": 0.05, "unit": "kg"}
+        {
+          "name": "whole fish",
+          "quantity": 1.2,
+          "unit": "kg"
+        },
+        {
+          "name": "soy sauce",
+          "quantity": 0.15,
+          "unit": "L"
+        },
+        {
+          "name": "ginger",
+          "quantity": 0.06,
+          "unit": "kg"
+        },
+        {
+          "name": "scallions",
+          "quantity": 0.08,
+          "unit": "kg"
+        },
+        {
+          "name": "sesame oil",
+          "quantity": 0.03,
+          "unit": "L"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.05,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -725,16 +1808,50 @@
       "name": "Braised Mushroom and Broccoli",
       "cuisine": "chinese",
       "category": "vegetable",
-      "allergens": ["soy"],
-      "dietary_flags": ["vegan", "vegetarian", "halal"],
+      "allergens": [
+        "soy"
+      ],
+      "dietary_flags": [
+        "vegan",
+        "vegetarian",
+        "halal"
+      ],
       "ingredients": [
-        {"name": "mushroom", "quantity": 0.6, "unit": "kg"},
-        {"name": "broccoli", "quantity": 0.6, "unit": "kg"},
-        {"name": "soy sauce", "quantity": 0.1, "unit": "L"},
-        {"name": "garlic", "quantity": 0.05, "unit": "kg"},
-        {"name": "ginger", "quantity": 0.04, "unit": "kg"},
-        {"name": "sesame oil", "quantity": 0.03, "unit": "L"},
-        {"name": "cornstarch", "quantity": 0.05, "unit": "kg"}
+        {
+          "name": "mushroom",
+          "quantity": 0.6,
+          "unit": "kg"
+        },
+        {
+          "name": "broccoli",
+          "quantity": 0.6,
+          "unit": "kg"
+        },
+        {
+          "name": "soy sauce",
+          "quantity": 0.1,
+          "unit": "L"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.05,
+          "unit": "kg"
+        },
+        {
+          "name": "ginger",
+          "quantity": 0.04,
+          "unit": "kg"
+        },
+        {
+          "name": "sesame oil",
+          "quantity": 0.03,
+          "unit": "L"
+        },
+        {
+          "name": "cornstarch",
+          "quantity": 0.05,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -742,14 +1859,39 @@
       "name": "Mango Sago",
       "cuisine": "chinese",
       "category": "dessert",
-      "allergens": ["dairy"],
-      "dietary_flags": ["vegetarian", "halal"],
+      "allergens": [
+        "dairy"
+      ],
+      "dietary_flags": [
+        "vegetarian",
+        "halal"
+      ],
       "ingredients": [
-        {"name": "mango", "quantity": 0.8, "unit": "kg"},
-        {"name": "sago pearls", "quantity": 0.2, "unit": "kg"},
-        {"name": "evaporated milk", "quantity": 0.3, "unit": "L"},
-        {"name": "sugar", "quantity": 0.15, "unit": "kg"},
-        {"name": "young coconut", "quantity": 0.2, "unit": "kg"}
+        {
+          "name": "mango",
+          "quantity": 0.8,
+          "unit": "kg"
+        },
+        {
+          "name": "sago pearls",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "evaporated milk",
+          "quantity": 0.3,
+          "unit": "L"
+        },
+        {
+          "name": "sugar",
+          "quantity": 0.15,
+          "unit": "kg"
+        },
+        {
+          "name": "young coconut",
+          "quantity": 0.2,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -757,15 +1899,42 @@
       "name": "Egg Drop Soup",
       "cuisine": "chinese",
       "category": "soup",
-      "allergens": ["egg", "soy"],
+      "allergens": [
+        "egg",
+        "soy"
+      ],
       "dietary_flags": [],
       "ingredients": [
-        {"name": "egg", "quantity": 0.2, "unit": "kg"},
-        {"name": "chicken broth", "quantity": 1.5, "unit": "L"},
-        {"name": "cornstarch", "quantity": 0.05, "unit": "kg"},
-        {"name": "soy sauce", "quantity": 0.05, "unit": "L"},
-        {"name": "scallions", "quantity": 0.05, "unit": "kg"},
-        {"name": "sesame oil", "quantity": 0.02, "unit": "L"}
+        {
+          "name": "egg",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "chicken broth",
+          "quantity": 1.5,
+          "unit": "L"
+        },
+        {
+          "name": "cornstarch",
+          "quantity": 0.05,
+          "unit": "kg"
+        },
+        {
+          "name": "soy sauce",
+          "quantity": 0.05,
+          "unit": "L"
+        },
+        {
+          "name": "scallions",
+          "quantity": 0.05,
+          "unit": "kg"
+        },
+        {
+          "name": "sesame oil",
+          "quantity": 0.02,
+          "unit": "L"
+        }
       ]
     },
     {
@@ -773,16 +1942,48 @@
       "name": "Lasagna",
       "cuisine": "western",
       "category": "pasta",
-      "allergens": ["gluten", "dairy", "egg"],
+      "allergens": [
+        "gluten",
+        "dairy",
+        "egg"
+      ],
       "dietary_flags": [],
       "ingredients": [
-        {"name": "lasagna sheets", "quantity": 0.6, "unit": "kg"},
-        {"name": "ground beef", "quantity": 0.8, "unit": "kg"},
-        {"name": "tomato sauce", "quantity": 0.5, "unit": "kg"},
-        {"name": "bechamel sauce", "quantity": 0.4, "unit": "L"},
-        {"name": "cheese", "quantity": 0.3, "unit": "kg"},
-        {"name": "onion", "quantity": 0.2, "unit": "kg"},
-        {"name": "garlic", "quantity": 0.05, "unit": "kg"}
+        {
+          "name": "lasagna sheets",
+          "quantity": 0.6,
+          "unit": "kg"
+        },
+        {
+          "name": "ground beef",
+          "quantity": 0.8,
+          "unit": "kg"
+        },
+        {
+          "name": "tomato sauce",
+          "quantity": 0.5,
+          "unit": "kg"
+        },
+        {
+          "name": "bechamel sauce",
+          "quantity": 0.4,
+          "unit": "L"
+        },
+        {
+          "name": "cheese",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "onion",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.05,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -790,16 +1991,47 @@
       "name": "Chicken Teriyaki",
       "cuisine": "western",
       "category": "main",
-      "allergens": ["soy", "gluten"],
+      "allergens": [
+        "soy",
+        "gluten"
+      ],
       "dietary_flags": [],
       "ingredients": [
-        {"name": "chicken", "quantity": 1.2, "unit": "kg"},
-        {"name": "soy sauce", "quantity": 0.15, "unit": "L"},
-        {"name": "mirin", "quantity": 0.1, "unit": "L"},
-        {"name": "sugar", "quantity": 0.08, "unit": "kg"},
-        {"name": "garlic", "quantity": 0.05, "unit": "kg"},
-        {"name": "ginger", "quantity": 0.04, "unit": "kg"},
-        {"name": "sesame oil", "quantity": 0.02, "unit": "L"}
+        {
+          "name": "chicken",
+          "quantity": 1.2,
+          "unit": "kg"
+        },
+        {
+          "name": "soy sauce",
+          "quantity": 0.15,
+          "unit": "L"
+        },
+        {
+          "name": "mirin",
+          "quantity": 0.1,
+          "unit": "L"
+        },
+        {
+          "name": "sugar",
+          "quantity": 0.08,
+          "unit": "kg"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.05,
+          "unit": "kg"
+        },
+        {
+          "name": "ginger",
+          "quantity": 0.04,
+          "unit": "kg"
+        },
+        {
+          "name": "sesame oil",
+          "quantity": 0.02,
+          "unit": "L"
+        }
       ]
     },
     {
@@ -808,16 +2040,50 @@
       "cuisine": "international",
       "category": "main",
       "allergens": [],
-      "dietary_flags": ["halal"],
+      "dietary_flags": [
+        "halal"
+      ],
       "ingredients": [
-        {"name": "chicken", "quantity": 1.2, "unit": "kg"},
-        {"name": "bell pepper", "quantity": 0.3, "unit": "kg"},
-        {"name": "onion", "quantity": 0.3, "unit": "kg"},
-        {"name": "olive oil", "quantity": 0.08, "unit": "L"},
-        {"name": "lemon", "quantity": 0.1, "unit": "kg"},
-        {"name": "garlic", "quantity": 0.05, "unit": "kg"},
-        {"name": "cumin", "quantity": 0.01, "unit": "kg"},
-        {"name": "black pepper", "quantity": 0.01, "unit": "kg"}
+        {
+          "name": "chicken",
+          "quantity": 1.2,
+          "unit": "kg"
+        },
+        {
+          "name": "bell pepper",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "onion",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "olive oil",
+          "quantity": 0.08,
+          "unit": "L"
+        },
+        {
+          "name": "lemon",
+          "quantity": 0.1,
+          "unit": "kg"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.05,
+          "unit": "kg"
+        },
+        {
+          "name": "cumin",
+          "quantity": 0.01,
+          "unit": "kg"
+        },
+        {
+          "name": "black pepper",
+          "quantity": 0.01,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -825,16 +2091,49 @@
       "name": "Greek Salad",
       "cuisine": "international",
       "category": "salad",
-      "allergens": ["dairy"],
-      "dietary_flags": ["vegetarian", "halal"],
+      "allergens": [
+        "dairy"
+      ],
+      "dietary_flags": [
+        "vegetarian",
+        "halal"
+      ],
       "ingredients": [
-        {"name": "cucumber", "quantity": 0.4, "unit": "kg"},
-        {"name": "tomato", "quantity": 0.4, "unit": "kg"},
-        {"name": "red onion", "quantity": 0.15, "unit": "kg"},
-        {"name": "feta cheese", "quantity": 0.2, "unit": "kg"},
-        {"name": "olive oil", "quantity": 0.08, "unit": "L"},
-        {"name": "lemon", "quantity": 0.08, "unit": "kg"},
-        {"name": "black pepper", "quantity": 0.005, "unit": "kg"}
+        {
+          "name": "cucumber",
+          "quantity": 0.4,
+          "unit": "kg"
+        },
+        {
+          "name": "tomato",
+          "quantity": 0.4,
+          "unit": "kg"
+        },
+        {
+          "name": "red onion",
+          "quantity": 0.15,
+          "unit": "kg"
+        },
+        {
+          "name": "feta cheese",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "olive oil",
+          "quantity": 0.08,
+          "unit": "L"
+        },
+        {
+          "name": "lemon",
+          "quantity": 0.08,
+          "unit": "kg"
+        },
+        {
+          "name": "black pepper",
+          "quantity": 0.005,
+          "unit": "kg"
+        }
       ]
     },
     {
@@ -843,15 +2142,807 @@
       "cuisine": "international",
       "category": "salad",
       "allergens": [],
-      "dietary_flags": ["vegan", "vegetarian", "halal"],
+      "dietary_flags": [
+        "vegan",
+        "vegetarian",
+        "halal"
+      ],
       "ingredients": [
-        {"name": "romaine lettuce", "quantity": 0.4, "unit": "kg"},
-        {"name": "tomato", "quantity": 0.3, "unit": "kg"},
-        {"name": "cucumber", "quantity": 0.3, "unit": "kg"},
-        {"name": "carrot", "quantity": 0.2, "unit": "kg"},
-        {"name": "olive oil", "quantity": 0.06, "unit": "L"},
-        {"name": "lemon", "quantity": 0.06, "unit": "kg"},
-        {"name": "salt", "quantity": 0.005, "unit": "kg"}
+        {
+          "name": "romaine lettuce",
+          "quantity": 0.4,
+          "unit": "kg"
+        },
+        {
+          "name": "tomato",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "cucumber",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "carrot",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "olive oil",
+          "quantity": 0.06,
+          "unit": "L"
+        },
+        {
+          "name": "lemon",
+          "quantity": 0.06,
+          "unit": "kg"
+        },
+        {
+          "name": "salt",
+          "quantity": 0.005,
+          "unit": "kg"
+        }
+      ]
+    },
+    {
+      "id": "chn-007",
+      "name": "Sweet and Sour Pork",
+      "cuisine": "chinese",
+      "category": "main",
+      "allergens": [
+        "soy"
+      ],
+      "dietary_flags": [],
+      "ingredients": [
+        {
+          "name": "pork",
+          "quantity": 1.0,
+          "unit": "kg"
+        },
+        {
+          "name": "pineapple",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "bell pepper",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "vinegar",
+          "quantity": 0.15,
+          "unit": "L"
+        },
+        {
+          "name": "ketchup",
+          "quantity": 0.1,
+          "unit": "kg"
+        },
+        {
+          "name": "soy sauce",
+          "quantity": 0.05,
+          "unit": "L"
+        }
+      ]
+    },
+    {
+      "id": "chn-008",
+      "name": "Mapo Tofu",
+      "cuisine": "chinese",
+      "category": "main",
+      "allergens": [
+        "soy"
+      ],
+      "dietary_flags": [
+        "vegan",
+        "halal"
+      ],
+      "ingredients": [
+        {
+          "name": "tofu",
+          "quantity": 0.8,
+          "unit": "kg"
+        },
+        {
+          "name": "doubanjiang",
+          "quantity": 0.05,
+          "unit": "kg"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.04,
+          "unit": "kg"
+        },
+        {
+          "name": "ginger",
+          "quantity": 0.03,
+          "unit": "kg"
+        },
+        {
+          "name": "spring onion",
+          "quantity": 0.05,
+          "unit": "kg"
+        }
+      ]
+    },
+    {
+      "id": "chn-009",
+      "name": "Hot and Sour Soup",
+      "cuisine": "chinese",
+      "category": "soup",
+      "allergens": [
+        "soy",
+        "egg"
+      ],
+      "dietary_flags": [],
+      "ingredients": [
+        {
+          "name": "tofu",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "bamboo shoots",
+          "quantity": 0.15,
+          "unit": "kg"
+        },
+        {
+          "name": "egg",
+          "quantity": 0.1,
+          "unit": "kg"
+        },
+        {
+          "name": "vinegar",
+          "quantity": 0.05,
+          "unit": "L"
+        },
+        {
+          "name": "soy sauce",
+          "quantity": 0.05,
+          "unit": "L"
+        }
+      ]
+    },
+    {
+      "id": "chn-010",
+      "name": "Sauteed Bok Choy",
+      "cuisine": "chinese",
+      "category": "vegetable",
+      "allergens": [
+        "soy"
+      ],
+      "dietary_flags": [
+        "vegan",
+        "halal"
+      ],
+      "ingredients": [
+        {
+          "name": "bok choy",
+          "quantity": 1.0,
+          "unit": "kg"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.05,
+          "unit": "kg"
+        },
+        {
+          "name": "oyster sauce",
+          "quantity": 0.06,
+          "unit": "L"
+        },
+        {
+          "name": "cooking oil",
+          "quantity": 0.05,
+          "unit": "L"
+        }
+      ]
+    },
+    {
+      "id": "chn-011",
+      "name": "Pineapple Fried Rice",
+      "cuisine": "chinese",
+      "category": "rice",
+      "allergens": [
+        "egg",
+        "soy"
+      ],
+      "dietary_flags": [
+        "halal"
+      ],
+      "ingredients": [
+        {
+          "name": "rice",
+          "quantity": 0.5,
+          "unit": "kg"
+        },
+        {
+          "name": "pineapple",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "egg",
+          "quantity": 0.15,
+          "unit": "kg"
+        },
+        {
+          "name": "soy sauce",
+          "quantity": 0.05,
+          "unit": "L"
+        },
+        {
+          "name": "spring onion",
+          "quantity": 0.05,
+          "unit": "kg"
+        }
+      ]
+    },
+    {
+      "id": "chn-012",
+      "name": "Almond Jelly with Lychee",
+      "cuisine": "chinese",
+      "category": "dessert",
+      "allergens": [
+        "nuts"
+      ],
+      "dietary_flags": [
+        "vegan",
+        "halal"
+      ],
+      "ingredients": [
+        {
+          "name": "almond milk",
+          "quantity": 0.5,
+          "unit": "L"
+        },
+        {
+          "name": "agar agar",
+          "quantity": 0.02,
+          "unit": "kg"
+        },
+        {
+          "name": "lychee",
+          "quantity": 0.4,
+          "unit": "kg"
+        },
+        {
+          "name": "sugar",
+          "quantity": 0.1,
+          "unit": "kg"
+        }
+      ]
+    },
+    {
+      "id": "chn-013",
+      "name": "Beef Noodle Soup",
+      "cuisine": "chinese",
+      "category": "noodles",
+      "allergens": [
+        "soy",
+        "gluten"
+      ],
+      "dietary_flags": [],
+      "ingredients": [
+        {
+          "name": "beef",
+          "quantity": 0.8,
+          "unit": "kg"
+        },
+        {
+          "name": "egg noodles",
+          "quantity": 0.4,
+          "unit": "kg"
+        },
+        {
+          "name": "bok choy",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "soy sauce",
+          "quantity": 0.08,
+          "unit": "L"
+        },
+        {
+          "name": "star anise",
+          "quantity": 0.005,
+          "unit": "kg"
+        },
+        {
+          "name": "ginger",
+          "quantity": 0.03,
+          "unit": "kg"
+        }
+      ]
+    },
+    {
+      "id": "wes-008",
+      "name": "Grilled Salmon",
+      "cuisine": "western",
+      "category": "main",
+      "allergens": [
+        "fish"
+      ],
+      "dietary_flags": [
+        "no_meat",
+        "halal"
+      ],
+      "ingredients": [
+        {
+          "name": "salmon fillet",
+          "quantity": 1.2,
+          "unit": "kg"
+        },
+        {
+          "name": "lemon",
+          "quantity": 0.15,
+          "unit": "kg"
+        },
+        {
+          "name": "butter",
+          "quantity": 0.08,
+          "unit": "kg"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.04,
+          "unit": "kg"
+        },
+        {
+          "name": "dill",
+          "quantity": 0.01,
+          "unit": "kg"
+        }
+      ]
+    },
+    {
+      "id": "wes-009",
+      "name": "Beef Burger",
+      "cuisine": "western",
+      "category": "main",
+      "allergens": [
+        "gluten",
+        "egg",
+        "dairy"
+      ],
+      "dietary_flags": [],
+      "ingredients": [
+        {
+          "name": "ground beef",
+          "quantity": 1.0,
+          "unit": "kg"
+        },
+        {
+          "name": "burger bun",
+          "quantity": 0.5,
+          "unit": "kg"
+        },
+        {
+          "name": "cheese",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "lettuce",
+          "quantity": 0.1,
+          "unit": "kg"
+        },
+        {
+          "name": "tomato",
+          "quantity": 0.2,
+          "unit": "kg"
+        }
+      ]
+    },
+    {
+      "id": "wes-010",
+      "name": "Tiramisu",
+      "cuisine": "western",
+      "category": "dessert",
+      "allergens": [
+        "dairy",
+        "egg",
+        "gluten"
+      ],
+      "dietary_flags": [
+        "vegetarian"
+      ],
+      "ingredients": [
+        {
+          "name": "mascarpone",
+          "quantity": 0.5,
+          "unit": "kg"
+        },
+        {
+          "name": "ladyfingers",
+          "quantity": 0.25,
+          "unit": "kg"
+        },
+        {
+          "name": "egg",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "coffee",
+          "quantity": 0.3,
+          "unit": "L"
+        },
+        {
+          "name": "cocoa powder",
+          "quantity": 0.03,
+          "unit": "kg"
+        },
+        {
+          "name": "sugar",
+          "quantity": 0.1,
+          "unit": "kg"
+        }
+      ]
+    },
+    {
+      "id": "wes-011",
+      "name": "Creamy Mushroom Soup",
+      "cuisine": "western",
+      "category": "soup",
+      "allergens": [
+        "dairy"
+      ],
+      "dietary_flags": [
+        "vegetarian"
+      ],
+      "ingredients": [
+        {
+          "name": "mushroom",
+          "quantity": 0.6,
+          "unit": "kg"
+        },
+        {
+          "name": "cream",
+          "quantity": 0.3,
+          "unit": "L"
+        },
+        {
+          "name": "onion",
+          "quantity": 0.15,
+          "unit": "kg"
+        },
+        {
+          "name": "butter",
+          "quantity": 0.05,
+          "unit": "kg"
+        },
+        {
+          "name": "thyme",
+          "quantity": 0.005,
+          "unit": "kg"
+        }
+      ]
+    },
+    {
+      "id": "wes-012",
+      "name": "Mashed Potatoes",
+      "cuisine": "western",
+      "category": "vegetable",
+      "allergens": [
+        "dairy"
+      ],
+      "dietary_flags": [
+        "vegetarian"
+      ],
+      "ingredients": [
+        {
+          "name": "potato",
+          "quantity": 1.0,
+          "unit": "kg"
+        },
+        {
+          "name": "butter",
+          "quantity": 0.1,
+          "unit": "kg"
+        },
+        {
+          "name": "cream",
+          "quantity": 0.2,
+          "unit": "L"
+        },
+        {
+          "name": "salt",
+          "quantity": 0.01,
+          "unit": "kg"
+        }
+      ]
+    },
+    {
+      "id": "int-009",
+      "name": "Butter Chicken",
+      "cuisine": "international",
+      "category": "main",
+      "allergens": [
+        "dairy"
+      ],
+      "dietary_flags": [
+        "halal"
+      ],
+      "ingredients": [
+        {
+          "name": "chicken",
+          "quantity": 1.0,
+          "unit": "kg"
+        },
+        {
+          "name": "butter",
+          "quantity": 0.1,
+          "unit": "kg"
+        },
+        {
+          "name": "tomato",
+          "quantity": 0.5,
+          "unit": "kg"
+        },
+        {
+          "name": "cream",
+          "quantity": 0.2,
+          "unit": "L"
+        },
+        {
+          "name": "garam masala",
+          "quantity": 0.02,
+          "unit": "kg"
+        },
+        {
+          "name": "ginger",
+          "quantity": 0.03,
+          "unit": "kg"
+        }
+      ]
+    },
+    {
+      "id": "int-010",
+      "name": "Beef Bulgogi",
+      "cuisine": "international",
+      "category": "main",
+      "allergens": [
+        "soy"
+      ],
+      "dietary_flags": [],
+      "ingredients": [
+        {
+          "name": "beef",
+          "quantity": 1.0,
+          "unit": "kg"
+        },
+        {
+          "name": "soy sauce",
+          "quantity": 0.1,
+          "unit": "L"
+        },
+        {
+          "name": "sesame oil",
+          "quantity": 0.03,
+          "unit": "L"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.05,
+          "unit": "kg"
+        },
+        {
+          "name": "pear",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "spring onion",
+          "quantity": 0.05,
+          "unit": "kg"
+        }
+      ]
+    },
+    {
+      "id": "int-011",
+      "name": "Vegetable Curry",
+      "cuisine": "international",
+      "category": "main",
+      "allergens": [
+        "nuts"
+      ],
+      "dietary_flags": [
+        "vegan",
+        "halal",
+        "no_meat"
+      ],
+      "ingredients": [
+        {
+          "name": "potato",
+          "quantity": 0.5,
+          "unit": "kg"
+        },
+        {
+          "name": "carrot",
+          "quantity": 0.3,
+          "unit": "kg"
+        },
+        {
+          "name": "coconut milk",
+          "quantity": 0.4,
+          "unit": "L"
+        },
+        {
+          "name": "curry powder",
+          "quantity": 0.03,
+          "unit": "kg"
+        },
+        {
+          "name": "onion",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "tomato",
+          "quantity": 0.3,
+          "unit": "kg"
+        }
+      ]
+    },
+    {
+      "id": "int-012",
+      "name": "Grilled Fish Fillet",
+      "cuisine": "international",
+      "category": "main",
+      "allergens": [
+        "fish"
+      ],
+      "dietary_flags": [
+        "no_meat",
+        "halal"
+      ],
+      "ingredients": [
+        {
+          "name": "fish fillet",
+          "quantity": 1.2,
+          "unit": "kg"
+        },
+        {
+          "name": "lemon",
+          "quantity": 0.15,
+          "unit": "kg"
+        },
+        {
+          "name": "olive oil",
+          "quantity": 0.05,
+          "unit": "L"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.04,
+          "unit": "kg"
+        },
+        {
+          "name": "parsley",
+          "quantity": 0.02,
+          "unit": "kg"
+        }
+      ]
+    },
+    {
+      "id": "int-013",
+      "name": "Coleslaw",
+      "cuisine": "international",
+      "category": "salad",
+      "allergens": [
+        "egg"
+      ],
+      "dietary_flags": [
+        "vegetarian",
+        "halal"
+      ],
+      "ingredients": [
+        {
+          "name": "cabbage",
+          "quantity": 0.5,
+          "unit": "kg"
+        },
+        {
+          "name": "carrot",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "mayonnaise",
+          "quantity": 0.15,
+          "unit": "kg"
+        },
+        {
+          "name": "sugar",
+          "quantity": 0.03,
+          "unit": "kg"
+        },
+        {
+          "name": "lemon",
+          "quantity": 0.05,
+          "unit": "kg"
+        }
+      ]
+    },
+    {
+      "id": "fil-029",
+      "name": "Ginisang Sitaw",
+      "cuisine": "filipino",
+      "category": "vegetable",
+      "allergens": [
+        "soy"
+      ],
+      "dietary_flags": [
+        "vegan",
+        "halal"
+      ],
+      "ingredients": [
+        {
+          "name": "string beans",
+          "quantity": 0.8,
+          "unit": "kg"
+        },
+        {
+          "name": "garlic",
+          "quantity": 0.05,
+          "unit": "kg"
+        },
+        {
+          "name": "onion",
+          "quantity": 0.1,
+          "unit": "kg"
+        },
+        {
+          "name": "tomato",
+          "quantity": 0.2,
+          "unit": "kg"
+        },
+        {
+          "name": "cooking oil",
+          "quantity": 0.04,
+          "unit": "L"
+        }
+      ]
+    },
+    {
+      "id": "fil-030",
+      "name": "Chicken Binakol",
+      "cuisine": "filipino",
+      "category": "soup",
+      "allergens": [],
+      "dietary_flags": [
+        "halal"
+      ],
+      "ingredients": [
+        {
+          "name": "chicken",
+          "quantity": 1.0,
+          "unit": "kg"
+        },
+        {
+          "name": "young coconut",
+          "quantity": 0.5,
+          "unit": "kg"
+        },
+        {
+          "name": "ginger",
+          "quantity": 0.05,
+          "unit": "kg"
+        },
+        {
+          "name": "lemongrass",
+          "quantity": 0.05,
+          "unit": "kg"
+        },
+        {
+          "name": "onion",
+          "quantity": 0.15,
+          "unit": "kg"
+        }
       ]
     }
   ]

@@ -33,7 +33,7 @@ from utils.cosmos_store import format_past_orders_context, query_past_orders
 
 AGENT_ID = "head_chef"
 
-# Per-serving nutritional estimates for all 49 recipes in the knowledge base.
+# Per-serving nutritional estimates for all 68 recipes in the knowledge base.
 # Values are calibrated to a single catering serving (approx. 250-350g plated portion).
 # Source: standard food composition data cross-referenced against typical Filipino,
 # Chinese, and International catering portion sizes.
@@ -96,6 +96,29 @@ NUTRITION_LOOKUP: dict[str, NutritionInfo] = {
     "Chicken Kebabs":         NutritionInfo(calories=320, protein_g=30, carbs_g=8,  fat_g=16),
     "Greek Salad":            NutritionInfo(calories=180, protein_g=6,  carbs_g=14, fat_g=12),
     "Garden Fresh Salad":     NutritionInfo(calories=120, protein_g=3,  carbs_g=12, fat_g=8),
+    # ── Chinese (new) ───────────────────────────────────────────────────────────
+    "Sweet and Sour Pork":    NutritionInfo(calories=480, protein_g=28, carbs_g=40, fat_g=18),
+    "Mapo Tofu":              NutritionInfo(calories=280, protein_g=18, carbs_g=12, fat_g=18),
+    "Hot and Sour Soup":      NutritionInfo(calories=120, protein_g=8,  carbs_g=14, fat_g=4),
+    "Sauteed Bok Choy":       NutritionInfo(calories=90,  protein_g=4,  carbs_g=8,  fat_g=5),
+    "Pineapple Fried Rice":   NutritionInfo(calories=320, protein_g=10, carbs_g=50, fat_g=8),
+    "Almond Jelly with Lychee": NutritionInfo(calories=180, protein_g=3, carbs_g=38, fat_g=3),
+    "Beef Noodle Soup":       NutritionInfo(calories=380, protein_g=25, carbs_g=35, fat_g=14),
+    # ── Western (new) ───────────────────────────────────────────────────────────
+    "Grilled Salmon":         NutritionInfo(calories=320, protein_g=34, carbs_g=2,  fat_g=18),
+    "Beef Burger":            NutritionInfo(calories=650, protein_g=35, carbs_g=55, fat_g=30),
+    "Tiramisu":               NutritionInfo(calories=380, protein_g=6,  carbs_g=40, fat_g=22),
+    "Creamy Mushroom Soup":   NutritionInfo(calories=160, protein_g=5,  carbs_g=15, fat_g=9),
+    "Mashed Potatoes":        NutritionInfo(calories=180, protein_g=4,  carbs_g=28, fat_g=6),
+    # ── International (new) ─────────────────────────────────────────────────────
+    "Butter Chicken":         NutritionInfo(calories=380, protein_g=32, carbs_g=12, fat_g=22),
+    "Beef Bulgogi":           NutritionInfo(calories=350, protein_g=28, carbs_g=15, fat_g=20),
+    "Vegetable Curry":        NutritionInfo(calories=220, protein_g=6,  carbs_g=28, fat_g=10),
+    "Grilled Fish Fillet":    NutritionInfo(calories=280, protein_g=30, carbs_g=8,  fat_g=14),
+    "Coleslaw":               NutritionInfo(calories=120, protein_g=2,  carbs_g=18, fat_g=5),
+    # ── Filipino (new) ──────────────────────────────────────────────────────────
+    "Ginisang Sitaw":         NutritionInfo(calories=140, protein_g=5,  carbs_g=10, fat_g=9),
+    "Chicken Binakol":        NutritionInfo(calories=280, protein_g=28, carbs_g=15, fat_g=12),
 }
 
 

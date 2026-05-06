@@ -1,5 +1,69 @@
 ### 📋 SECTION 1: DEV LOG (Technical Record)
 
+#### Session 14 — 2026-05-06
+**Goal:** Pre-submission sprint — recipe KB expansion, negotiation improvements, health monitoring, AutoGen GroupChat integration.
+
+**What we built:**
+
+**A — README Fixes**
+- Added Order History UI, Budget Suggestion, Profitability Forecast, Nutritional Data, Gantt Chart, and Parallel Agent Execution to Bonus Features table
+- Fixed Known Limitations #4 — accurately describes Cosmos DB as primary inventory source with mock fallback
+- Added Production Roadmap section (Tool Calling, AutoGen GroupChat, SK Planner, SSE, provisioned throughput)
+- Updated Microsoft Agent Framework section — AutoGen GroupChat now **Active** (not just instantiated)
+
+**B — Architecture Diagram**
+- Generated `architecture_diagram.png` — 5-agent pipeline visual for portal submission
+- Shows: Customer Request → FastAPI → Orchestration Engine → 5 agents → Azure services → React Frontend
+
+**C — Recipe KB Expansion (49 → 68 recipes)**
+- Added 19 new recipes across thin categories:
+  - Chinese: Sweet and Sour Pork, Mapo Tofu (vegan/halal), Hot and Sour Soup, Sauteed Bok Choy, Pineapple Fried Rice, Almond Jelly with Lychee, Beef Noodle Soup
+  - Western: Grilled Salmon, Beef Burger, Tiramisu, Creamy Mushroom Soup, Mashed Potatoes
+  - International: Butter Chicken, Beef Bulgogi, Vegetable Curry (vegan/halal), Grilled Fish Fillet, Coleslaw
+  - Filipino: Ginisang Sitaw (vegan/halal), Chicken Binakol (halal)
+- Added `NutritionInfo` entries for all 19 new recipes in `NUTRITION_LOOKUP`
+- Re-ran `setup_search_index.py` → Azure AI Search now has 70 documents (68 recipes + 2 knowledge docs)
+- Updated comment in `head_chef.py` from 49 to 68 recipes
+
+**D — Negotiation Exit Signal**
+- Added `reformulation_exhausted: bool = False` field to `CostReport` schema
+- `accountant.py` sets `reformulation_exhausted = True` when over budget but 0 items flagged
+  - Signals that no cheaper reformulation path exists
+- `engine.py` reads this flag and breaks the negotiation loop early in both negotiation blocks
+  - Saves GPT-4o calls and pipeline time when budget is genuinely impossible
+
+**E — Health Check Endpoint**
+- Added `GET /api/v1/health/agents` to `api/routes.py`
+- Checks: Azure OpenAI (ping completion), Cosmos DB (database.read), AI Search (get_document_count)
+- Returns: `{"status": "ok"|"degraded", "services": {...}, "agent_pipeline": [...]}`
+- 30-second in-memory cache to avoid burning tokens on frequent polls
+- Addresses briefing's "optional but recommended" monitoring criterion
+
+**F — AutoGen GroupChat Negotiation**
+- Created `orchestrator/autogen_negotiation.py`
+  - `run_autogen_negotiation()` creates `AccountantAgent` + `HeadChefAgent` using `AzureOpenAIChatCompletionClient`
+  - Uses `RoundRobinGroupChat` with `MaxMessageTermination(max_rounds * 2)` as termination condition
+  - Both agents exchange JSON blocks: `{"flagged_dishes": [...]}` / `{"reformulated_dishes": [...]}`
+  - Parses conversation messages to extract flagged and reformulated dish lists
+- Wired into `engine.py` (primary negotiation path):
+  - If plan is over budget → tries AutoGen GroupChat first
+  - AutoGen flagged dishes drive the structured `revise_menu_plan()` + `run_accountant()` calls
+  - On any AutoGen exception → graceful fallback to existing manual negotiation loop (unchanged)
+- Added `autogen-ext==0.7.5` to `requirements.txt` (provides `AzureOpenAIChatCompletionClient`)
+- README updated: AutoGen GroupChat listed as **Active**, not roadmap
+
+**UI — ResultsDashboard field surfacing (Session 13.5)**
+- Menu tab: Calories, Protein, Carbs, Fat columns (from `NUTRITION_LOOKUP`)
+- Cost tab: Recommended Selling Price + Est. Profit Margin card (from `CostReport`)
+
+**Progress Tracker:**
+- [x] Phase 1: Foundation
+- [x] Phase 2: Core pipeline  
+- [x] Phase 3: Azure integration
+- [x] Phase 4: Polish + testing
+- [x] Phase 5: Documentation + submission prep
+- [x] Phase 6: AutoGen GroupChat, recipe KB expansion, monitoring endpoint
+
 #### Session 1 — 2026-04-18
 **What we built:**
 - Created folders:

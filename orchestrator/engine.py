@@ -151,10 +151,12 @@ if kernel_function is not None:
             self,
             cost_report_message: AgentMessage,
             session_id: str,
-            logistics_plan_message: AgentMessage | None = None,
         ) -> AgentMessage:
+            # logistics_plan_message is always None in parallel execution;
+            # excluded from SK signature to avoid Union[AgentMessage,None]
+            # marshalling issues in SK 1.x
             return await run_stock_manager(
-                logistics_plan_message=logistics_plan_message,
+                logistics_plan_message=None,
                 cost_report_message=cost_report_message,
                 session_id=session_id,
             )
@@ -1035,8 +1037,16 @@ async def run_orchestration(
             )
 
         # Stock Manager runs in parallel with Logistics (both only need the cost_report).
-        # The event date is passed directly so no logistics handoff is needed before it starts.
+        # logistics_plan_message is not needed at this stage — it runs concurrently.
         async def _stock_manager_call():
+            if kernel is not None and kernel_function is not None:
+                result = await kernel.invoke(
+                    function_name="stock_manager",
+                    plugin_name=plugin_name,
+                    cost_report_message=cost_report_message,
+                    session_id=ctx.session_id,
+                )
+                return result.value if result is not None else None
             return await run_stock_manager(
                 logistics_plan_message=None,
                 cost_report_message=cost_report_message,

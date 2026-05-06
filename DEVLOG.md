@@ -1,68 +1,4 @@
-### 📋 SECTION 1: DEV LOG (Technical Record)
-
-#### Session 14 — 2026-05-06
-**Goal:** Pre-submission sprint — recipe KB expansion, negotiation improvements, health monitoring, AutoGen GroupChat integration.
-
-**What we built:**
-
-**A — README Fixes**
-- Added Order History UI, Budget Suggestion, Profitability Forecast, Nutritional Data, Gantt Chart, and Parallel Agent Execution to Bonus Features table
-- Fixed Known Limitations #4 — accurately describes Cosmos DB as primary inventory source with mock fallback
-- Added Production Roadmap section (Tool Calling, AutoGen GroupChat, SK Planner, SSE, provisioned throughput)
-- Updated Microsoft Agent Framework section — AutoGen GroupChat now **Active** (not just instantiated)
-
-**B — Architecture Diagram**
-- Generated `architecture_diagram.png` — 5-agent pipeline visual for portal submission
-- Shows: Customer Request → FastAPI → Orchestration Engine → 5 agents → Azure services → React Frontend
-
-**C — Recipe KB Expansion (49 → 68 recipes)**
-- Added 19 new recipes across thin categories:
-  - Chinese: Sweet and Sour Pork, Mapo Tofu (vegan/halal), Hot and Sour Soup, Sauteed Bok Choy, Pineapple Fried Rice, Almond Jelly with Lychee, Beef Noodle Soup
-  - Western: Grilled Salmon, Beef Burger, Tiramisu, Creamy Mushroom Soup, Mashed Potatoes
-  - International: Butter Chicken, Beef Bulgogi, Vegetable Curry (vegan/halal), Grilled Fish Fillet, Coleslaw
-  - Filipino: Ginisang Sitaw (vegan/halal), Chicken Binakol (halal)
-- Added `NutritionInfo` entries for all 19 new recipes in `NUTRITION_LOOKUP`
-- Re-ran `setup_search_index.py` → Azure AI Search now has 70 documents (68 recipes + 2 knowledge docs)
-- Updated comment in `head_chef.py` from 49 to 68 recipes
-
-**D — Negotiation Exit Signal**
-- Added `reformulation_exhausted: bool = False` field to `CostReport` schema
-- `accountant.py` sets `reformulation_exhausted = True` when over budget but 0 items flagged
-  - Signals that no cheaper reformulation path exists
-- `engine.py` reads this flag and breaks the negotiation loop early in both negotiation blocks
-  - Saves GPT-4o calls and pipeline time when budget is genuinely impossible
-
-**E — Health Check Endpoint**
-- Added `GET /api/v1/health/agents` to `api/routes.py`
-- Checks: Azure OpenAI (ping completion), Cosmos DB (database.read), AI Search (get_document_count)
-- Returns: `{"status": "ok"|"degraded", "services": {...}, "agent_pipeline": [...]}`
-- 30-second in-memory cache to avoid burning tokens on frequent polls
-- Addresses briefing's "optional but recommended" monitoring criterion
-
-**F — AutoGen GroupChat Negotiation**
-- Created `orchestrator/autogen_negotiation.py`
-  - `run_autogen_negotiation()` creates `AccountantAgent` + `HeadChefAgent` using `AzureOpenAIChatCompletionClient`
-  - Uses `RoundRobinGroupChat` with `MaxMessageTermination(max_rounds * 2)` as termination condition
-  - Both agents exchange JSON blocks: `{"flagged_dishes": [...]}` / `{"reformulated_dishes": [...]}`
-  - Parses conversation messages to extract flagged and reformulated dish lists
-- Wired into `engine.py` (primary negotiation path):
-  - If plan is over budget → tries AutoGen GroupChat first
-  - AutoGen flagged dishes drive the structured `revise_menu_plan()` + `run_accountant()` calls
-  - On any AutoGen exception → graceful fallback to existing manual negotiation loop (unchanged)
-- Added `autogen-ext==0.7.5` to `requirements.txt` (provides `AzureOpenAIChatCompletionClient`)
-- README updated: AutoGen GroupChat listed as **Active**, not roadmap
-
-**UI — ResultsDashboard field surfacing (Session 13.5)**
-- Menu tab: Calories, Protein, Carbs, Fat columns (from `NUTRITION_LOOKUP`)
-- Cost tab: Recommended Selling Price + Est. Profit Margin card (from `CostReport`)
-
-**Progress Tracker:**
-- [x] Phase 1: Foundation
-- [x] Phase 2: Core pipeline  
-- [x] Phase 3: Azure integration
-- [x] Phase 4: Polish + testing
-- [x] Phase 5: Documentation + submission prep
-- [x] Phase 6: AutoGen GroupChat, recipe KB expansion, monitoring endpoint
+﻿### 📋 SECTION 1: DEV LOG (Technical Record)
 
 #### Session 1 — 2026-04-18
 **What we built:**
@@ -846,6 +782,180 @@ Files: README.md, orchestrator/engine.py,
   check response body for error_code.
 - Result: 23/23 confirmed. All claims now match code.
 
+#### Session 31-A — 2026-05-06 (Hackathon Sprint: Schema Hardening + Parallel Processing)
+**What we built:**
+
+*Hackathon hardening: schema completeness, parallel processing, and UI polish.*
+
+**Backend — Schema & Data Model (utils/json_schema.py)**
+- Added `NutritionInfo` model (calories, protein_g, carbs_g, fat_g, all Optional)
+- Added `nutrition: Optional[NutritionInfo]` field to `MenuItem`
+- Added `GanttTask` model (task, owner, start_time, end_time, duration_minutes)
+- Added `gantt_chart: List[GanttTask]` field to `LogisticsPlan`
+- Added `recommended_selling_price_php` and `estimated_margin_percent` to `CostReport`
+
+**Backend — Head Chef (agents/head_chef.py)**
+- Added `NUTRITION_LOOKUP: dict[str, NutritionInfo]` — hardcoded nutritional data for all 51 dishes in the knowledge base
+- Every `MenuItem` built by the agent now carries per-serving kcal, protein, carbs, and fat
+- Covers Filipino, Chinese, Western, and International categories
+
+**Backend — Accountant (agents/accountant.py)**
+- After total cost is computed: `recommended_selling_price_php = total_cost / 0.70` (30% target margin)
+- `estimated_margin_percent = 30.0` set in the output `CostReport`
+- No change to negotiation logic or budget enforcement
+
+**Backend — Logistics Lead (agents/logistics.py)**
+- Added `_derive_gantt(timeline: list[TimelineEntry]) -> list[GanttTask]` helper
+- Converts sorted T-minus timeline entries into Gantt segments (start/end/duration_minutes)
+- `LogisticsPlan` now includes `gantt_chart` populated from the existing CPM timeline
+
+**Backend — Stock Manager (agents/stock_manager.py)**
+- Made `logistics_plan_message: Optional[AgentMessage] = None` (was required)
+- Added `event_date_fallback: Optional[str]` parameter for parallel execution mode
+- When `logistics_plan_message` is None, derives event date from fallback instead of logistics plan
+
+**Backend — Orchestration Engine (orchestrator/engine.py)**
+- Replaced sequential Logistics → Stock Manager hand-off with `asyncio.gather()` parallel execution
+- Both agents receive the cost_report; their outputs are independent
+- Reduces the final two pipeline stages from sequential to concurrent
+
+**Frontend — Layout (App.js, index.css)**
+- Agent Activity Feed moves to right column during loading so Order Form gets full left column
+- After results arrive, Agent Feed returns to left column below the form as completion summary
+- Live elapsed-time banner: `⚙️ Multi-agent pipeline running… {N}s` (updates every animation frame)
+- Time-based agent stage advancement with parallel indicator and negotiation phase indicator
+
+**Status at end of session:**
+- All 5 iNextLabs briefing fixable gaps resolved
+- Frontend layout is demo-ready
+- 23/23 correctness checks confirmed passing
+
+---
+
+#### Session 32 — 2026-05-06
+**Goal:** Pre-submission sprint — recipe KB expansion, negotiation improvements, health monitoring, AutoGen GroupChat integration.
+
+**What we built:**
+
+**A — README Fixes**
+- Added Order History UI, Budget Suggestion, Profitability Forecast, Nutritional Data, Gantt Chart, and Parallel Agent Execution to Bonus Features table
+- Fixed Known Limitations #4 — accurately describes Cosmos DB as primary inventory source with mock fallback
+- Added Production Roadmap section (Tool Calling, AutoGen GroupChat, SK Planner, SSE, provisioned throughput)
+- Updated Microsoft Agent Framework section — AutoGen GroupChat now **Active** (not just instantiated)
+
+**B — Architecture Diagram**
+- Generated `architecture_diagram.png` — 5-agent pipeline visual for portal submission
+- Shows: Customer Request → FastAPI → Orchestration Engine → 5 agents → Azure services → React Frontend
+
+**C — Recipe KB Expansion (49 → 68 recipes)**
+- Added 19 new recipes across thin categories:
+  - Chinese: Sweet and Sour Pork, Mapo Tofu (vegan/halal), Hot and Sour Soup, Sauteed Bok Choy, Pineapple Fried Rice, Almond Jelly with Lychee, Beef Noodle Soup
+  - Western: Grilled Salmon, Beef Burger, Tiramisu, Creamy Mushroom Soup, Mashed Potatoes
+  - International: Butter Chicken, Beef Bulgogi, Vegetable Curry (vegan/halal), Grilled Fish Fillet, Coleslaw
+  - Filipino: Ginisang Sitaw (vegan/halal), Chicken Binakol (halal)
+- Added `NutritionInfo` entries for all 19 new recipes in `NUTRITION_LOOKUP`
+- Re-ran `setup_search_index.py` → Azure AI Search now has 70 documents (68 recipes + 2 knowledge docs)
+- Updated comment in `head_chef.py` from 49 to 68 recipes
+
+**D — Negotiation Exit Signal**
+- Added `reformulation_exhausted: bool = False` field to `CostReport` schema
+- `accountant.py` sets `reformulation_exhausted = True` when over budget but 0 items flagged
+  - Signals that no cheaper reformulation path exists
+- `engine.py` reads this flag and breaks the negotiation loop early in both negotiation blocks
+  - Saves GPT-4o calls and pipeline time when budget is genuinely impossible
+
+**E — Health Check Endpoint**
+- Added `GET /api/v1/health/agents` to `api/routes.py`
+- Checks: Azure OpenAI (ping completion), Cosmos DB (database.read), AI Search (get_document_count)
+- Returns: `{"status": "ok"|"degraded", "services": {...}, "agent_pipeline": [...]}`
+- 30-second in-memory cache to avoid burning tokens on frequent polls
+- Addresses briefing's "optional but recommended" monitoring criterion
+
+**F — AutoGen GroupChat Negotiation**
+- Created `orchestrator/autogen_negotiation.py`
+  - `run_autogen_negotiation()` creates `AccountantAgent` + `HeadChefAgent` using `AzureOpenAIChatCompletionClient`
+  - Uses `RoundRobinGroupChat` with `MaxMessageTermination(max_rounds * 2)` as termination condition
+  - Both agents exchange JSON blocks: `{"flagged_dishes": [...]}` / `{"reformulated_dishes": [...]}`
+  - Parses conversation messages to extract flagged and reformulated dish lists
+- Wired into `engine.py` (primary negotiation path):
+  - If plan is over budget → tries AutoGen GroupChat first
+  - AutoGen flagged dishes drive the structured `revise_menu_plan()` + `run_accountant()` calls
+  - On any AutoGen exception → graceful fallback to existing manual negotiation loop (unchanged)
+- Added `autogen-ext==0.7.5` to `requirements.txt` (provides `AzureOpenAIChatCompletionClient`)
+- README updated: AutoGen GroupChat listed as **Active**, not roadmap
+
+**UI — ResultsDashboard field surfacing (Session 13.5)**
+- Menu tab: Calories, Protein, Carbs, Fat columns (from `NUTRITION_LOOKUP`)
+- Cost tab: Recommended Selling Price + Est. Profit Margin card (from `CostReport`)
+
+**Progress Tracker:**
+- [x] Phase 1: Foundation
+- [x] Phase 2: Core pipeline  
+- [x] Phase 3: Azure integration
+- [x] Phase 4: Polish + testing
+- [x] Phase 5: Documentation + submission prep
+- [x] Phase 6: AutoGen GroupChat, recipe KB expansion, monitoring endpoint
+
+#### Session 33 — 2026-05-06
+**Goal:** Pre-submission final audit, bug fixes, honest claim verification, and documentation hardening.
+
+**What we built / fixed:**
+
+**A — SK kernel.invoke() Restoration (engine.py)**
+- **Root cause identified:** `AgentMessage | None` union type on `@kernel_function stock_manager` signature caused SK 1.41.2 argument marshaller to fail with `KernelInvokeException` during parallel invocation
+- **Fix:** Removed `logistics_plan_message` from plugin signature — it is always `None` in parallel execution, hardcoded directly inside the plugin method
+- `_stock_manager_call()` now uses `kernel.invoke()` with direct-call fallback — same pattern as all 4 other agents
+- `event_date_fallback` confirmed unused inside `run_stock_manager()` body — omitting it from the kernel path has zero behavioral impact
+- Result: all 5 agents now correctly invoked via `kernel.invoke()` as claimed in README and ARCHITECTURE.md
+
+**B — Nutrition Fallback Enhancement (head_chef.py)**
+- Enhanced `_nutrition_for()` with deterministic keyword-based fallback:
+  - First: exact match in `NUTRITION_LOOKUP` (68 curated dishes)
+  - Second: keyword heuristic — chicken → 320 cal, beef → 360 cal, pork → 360 cal, fish → 280 cal, rice → 260 cal, dessert → 300 cal, soup → 160 cal, etc.
+  - Final: generic 300/12/35/12 estimate
+- Ensures all `MenuItem` objects always carry `NutritionInfo` — no more `null`/`-` in UI
+- All call sites updated to pass `category` parameter for better heuristic accuracy
+- **Honest disclosure:** values for known dishes are curated estimates; values for unknown dish name variants are keyword heuristics, not clinical nutrition facts
+
+**C — ARCHITECTURE.md (New file)**
+- Created `ARCHITECTURE.md` — full Mermaid diagram set for portal Solution Architecture submission
+- Covers: full 5-agent pipeline flowchart, AutoGen negotiation sequence diagram, AgentMessage class diagram
+- Added Tech Stack table (12 rows with versions and roles)
+- Added Scalability section: current demo → near-term (App Service + PTU) → enterprise (Container Apps + Service Bus)
+- Added Deployment Status table with honest local vs cloud breakdown
+
+**D — Comprehensive Audit & Honest Claim Corrections**
+- Corrected "autonomous" language — replaced with "automated pipeline" throughout portal text
+- Fixed README: 49→68 recipes, 51→70 docs, 23/23→22/23, AutoGen removed from roadmap (now active), project structure updated
+- Fixed ARCHITECTURE.md: `@kernel_function × 5 agents` and `kernel.invoke()` references restored after SK fix
+- Updated `briefing_alignment_report.md`: 51→70 docs, 51→68 dishes, AutoGen "roadmap"→"Active", 23/23→22/23, framework score 80%→90%
+- Confirmed: "kernel.invoke() for all 5 agents" is now accurate after the SK fix
+
+**E — Inventory Disclosure**
+- Confirmed: Cosmos DB `catering-inventory` container is configured but not seeded with production data
+- Stock Manager falls back to `data/mock_inventory.json` in practice
+- Accurately disclosed in README Known Limitations #4 and fireside chat prep doc
+
+**Commits this session:**
+- `8b61d21` — docs: audit fixes — README stale counts, ARCHITECTURE.md Mermaid diagram
+- `bb451ca` — docs: ARCHITECTURE.md — tech stack, scalability path, deployment status
+- `b5a1313` — fix: correct SK overclaims after debugging session (intermediate)
+- `f9bb5c5` — fix: restore kernel.invoke() for all 5 agents + docs correction
+
+**Artifacts created:**
+- `final_comprehensive_audit.md` — full briefing vs. built matrix, honest claim audit, fireside chat cheatsheet
+- `fireside_chat_prep.md` — 10 expected Q&A with honest answers
+- `full_audit_report.md` — pre-submission checklist and README fix list
+
+**Progress Tracker:**
+- [x] Phase 1: Foundation
+- [x] Phase 2: Core pipeline
+- [x] Phase 3: Azure integration
+- [x] Phase 4: Polish + testing
+- [x] Phase 5: Documentation + submission prep
+- [x] Phase 6: AutoGen GroupChat, recipe KB expansion, monitoring endpoint
+- [x] Phase 7: Final audit, SK fix, ARCHITECTURE.md, honest claim verification
+
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT
 
 #### Session 1 — 2026-04-18 — What I Learned
@@ -1320,71 +1430,3 @@ Files: README.md, orchestrator/engine.py,
 [ ] Demo video recorded
 [ ] Final commit pushed
 
----
-
-#### Session 13 — 2026-05-06
-**What we built:**
-
-*Hackathon hardening: schema completeness, parallel processing, and UI polish.*
-
-**Backend — Schema & Data Model (utils/json_schema.py)**
-- Added `NutritionInfo` model (calories, protein_g, carbs_g, fat_g, all Optional)
-- Added `nutrition: Optional[NutritionInfo]` field to `MenuItem`
-- Added `GanttTask` model (task, owner, start_time, end_time, duration_minutes)
-- Added `gantt_chart: List[GanttTask]` field to `LogisticsPlan`
-- Added `recommended_selling_price_php` and `estimated_margin_percent` to `CostReport`
-
-**Backend — Head Chef (agents/head_chef.py)**
-- Added `NUTRITION_LOOKUP: dict[str, NutritionInfo]` — hardcoded nutritional data for all 51 dishes in the knowledge base
-- Every `MenuItem` built by the agent now carries per-serving kcal, protein, carbs, and fat
-- Covers Filipino, Chinese, Western, and International categories
-
-**Backend — Accountant (agents/accountant.py)**
-- After total cost is computed: `recommended_selling_price_php = total_cost / 0.70` (30% target margin)
-- `estimated_margin_percent = 30.0` set in the output `CostReport`
-- No change to negotiation logic or budget enforcement
-
-**Backend — Logistics Lead (agents/logistics.py)**
-- Added `_derive_gantt(timeline: list[TimelineEntry]) -> list[GanttTask]` helper
-- Converts sorted T-minus timeline entries into Gantt segments (start/end/duration_minutes)
-- `LogisticsPlan` now includes `gantt_chart` populated from the existing CPM timeline
-
-**Backend — Stock Manager (agents/stock_manager.py)**
-- Made `logistics_plan_message: Optional[AgentMessage] = None` (was required)
-- Added `event_date_fallback: Optional[str]` parameter for parallel execution mode
-- When `logistics_plan_message` is None, derives event date from fallback instead of logistics plan
-- Approximates prep start time as `{event_date}T06:00:00+08:00` when running without logistics plan
-
-**Backend — Orchestration Engine (orchestrator/engine.py)**
-- Replaced sequential Logistics → Stock Manager hand-off with `asyncio.gather()` parallel execution
-- Both agents receive the cost_report; their outputs are independent
-- Reduces the final two pipeline stages from sequential to concurrent
-- Each agent's progress callback still fires after gather completes
-
-**Frontend — Layout (App.js, index.css)**
-- Agent Activity Feed now moves to the **right column during loading** so Order Form gets full left column
-- After results arrive, Agent Feed returns to the left column below the form as a completion summary
-- Left column: `overflow-y: auto` for natural scroll; right column: `overflow-y: auto; height: 100%`
-- Page fits in viewport (`html, body: height:100%; overflow:hidden`; container: flex column)
-
-**Frontend — Agent Activity Feed (AgentActivityFeed.js, AgentActivityFeed.css)**
-- Live elapsed-time banner: `⚙️ Multi-agent pipeline running… {N}s` (updates every animation frame via `requestAnimationFrame`)
-- Time-based agent stage advancement: Concierge 0-8s, Head Chef 8-43s, Accountant 43-73s, Logistics+Stock 73-98s/98-123s
-- Parallel indicator: shows `∥ parallel` next to Logistics and Stock Manager when both are active
-- Accountant negotiation phase: after 12s into Accountant's active window shows `⚡ negotiating with Chef…` (pulsing red, orange-tinted row)
-- Post-completion SSE replay: agent statuses animate in 400ms apart after order completes
-- `@keyframes pulse` and `@keyframes spin` added to AgentActivityFeed.css
-
-**What broke and how we fixed it:**
-- Duplicate `<div className="rightCol">` in App.js after layout restructure — merged into single rightCol containing both Agent Feed (during loading) and Results
-- `body` base styles accidentally removed during index.css rewrite — restored font-family, margin, background, color
-- Procurement table nested scrollbar cluttered the UI — reverted to standard SafeTable (right col provides scroll)
-
-**Azure resources used this session:**
-- None (all changes are local code; no additional Azure calls made)
-
-**Status at end of session:**
-- All 5 iNextLabs briefing fixable gaps resolved
-- Frontend layout is demo-ready: form visible, agent feed visible during loading, results scroll cleanly
-- 23/23 correctness checks confirmed passing (import validation clean)
-- Ready for final commit

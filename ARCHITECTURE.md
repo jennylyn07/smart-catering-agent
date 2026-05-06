@@ -168,3 +168,91 @@ classDiagram
 | Every GPT call degrades gracefully | `_call_with_retry()` + static fallback on all 5 agents |
 | AutoGen never breaks the pipeline | `try/except` fallback to manual negotiation loop |
 | Dietary flags immutable mid-pipeline | SharedMemory rejects writes to protected keys |
+
+---
+
+## Tech Stack
+
+| Layer | Technology | Version | Role |
+|---|---|---|---|
+| **AI Reasoning** | Azure OpenAI GPT-4o | 2024-11-20 | All 5 agents' reasoning, judgment, and rationale |
+| **Agent Framework** | Semantic Kernel | 1.41.2 | `CateringAgentsPlugin` + `@kernel_function` × 5, `kernel.invoke()` |
+| **Multi-Agent Chat** | AutoGen AgentChat | 0.7.5 | `RoundRobinGroupChat` — budget negotiation between AccountantAgent + HeadChefAgent |
+| **AutoGen Model Client** | AutoGen Ext | 0.7.5 | `AzureOpenAIChatCompletionClient` for AutoGen agents |
+| **RAG** | Azure AI Search | REST API | 70-document index — recipe selection + ingredient pricing |
+| **Persistence & Memory** | Azure Cosmos DB | NoSQL Serverless | Order storage + long-term memory (`query_past_orders()`) |
+| **Storage** | Azure Blob Storage | LRS | Document layer |
+| **API Layer** | FastAPI + Uvicorn | 0.115 / 0.34 | REST endpoints, X-API-Key auth, rate limiting (10/min) |
+| **Data Validation** | Pydantic | 2.x | Schema enforcement on all agent messages + API input |
+| **Backend Language** | Python | 3.11 | Async pipeline via `asyncio` |
+| **Frontend** | React | 18 | Neumorphic UI — order form, live pipeline, results dashboard |
+| **Agent Protocol** | Custom JSON + SHA-256 | — | Typed `AgentMessage` envelope on every agent-to-agent message |
+
+---
+
+## Scalability
+
+### Current State (Hackathon Demo)
+The system runs locally with all AI and data services hosted on Azure cloud:
+- **Compute**: localhost:8001 (backend) + localhost:3000 (frontend)
+- **AI Services**: Azure OpenAI (cloud), Azure AI Search (cloud), Azure Cosmos DB (cloud)
+- **Throughput**: Azure free tier — 20-120s per pipeline request
+- **Concurrency**: Single user, sequential requests (FastAPI async handles one pipeline per request)
+
+### Production Scalability Path
+
+```mermaid
+flowchart LR
+    subgraph Now["🏠 Demo — Local Compute"]
+        L1["FastAPI localhost:8001\nSingle instance"]
+        L2["Azure free tier\nShared capacity"]
+    end
+
+    subgraph Near["🚀 Near-Term — App Service"]
+        N1["Azure App Service\nor Container Apps\nHorizontal scale-out"]
+        N2["Azure OpenAI\nProvisioned Throughput\n8-20s per request"]
+        N3["Cosmos DB\nProvisioned RU/s\nConsistent low-latency reads"]
+    end
+
+    subgraph Scale["📈 At Scale — Enterprise"]
+        S1["Azure API Management\nRate limiting, auth, versioning"]
+        S2["Azure Service Bus\nAsync event-driven pipeline\nDecouple agents"]
+        S3["Azure Container Apps\nAuto-scale to zero\nPer-agent microservices"]
+        S4["Azure AI Search\nSemantic ranker\nVector search + hybrid"]
+    end
+
+    Now --> Near --> Scale
+```
+
+| Bottleneck | Current Limitation | Production Solution |
+|---|---|---|
+| **Compute** | localhost single process | Azure App Service / Container Apps — horizontal scale-out, auto-scale to zero |
+| **GPT latency** | 20-120s (free tier shared) | Provisioned Throughput Unit (PTU) — guaranteed 8-20s per pipeline |
+| **Agent parallelism** | Logistics + Stock Manager parallel; others sequential | Azure Service Bus event-driven pipeline — all agents decouple and run as independent microservices |
+| **Knowledge base** | Static 70-doc index | Azure AI Search vector search + semantic ranker — dynamic recipe discovery beyond fixed KB |
+| **Inventory** | Mock file fallback | Live Cosmos DB `catering-inventory` writes — real-time stock subtraction after each order |
+| **Concurrency** | One order at a time (FastAPI async) | Azure Container Apps auto-scaling — N parallel pipelines without code changes |
+| **Auth & routing** | API key per client | Azure API Management — JWT, subscription plans, usage analytics |
+| **Multi-tenant** | Single deployment | Per-tenant Cosmos containers, per-tenant AI Search indexes |
+
+### Why the Architecture Scales
+1. **Stateless agents** — each agent receives inputs, returns outputs, holds no state. Trivially horizontally scalable.
+2. **Async pipeline** — `asyncio.gather()` already runs Logistics + Stock Manager concurrently. Extending to all 5 agents requires only event queue integration.
+3. **Azure-native services** — OpenAI, Cosmos, AI Search all auto-scale independently of compute.
+4. **Structured message protocol** — `AgentMessage` JSON schema enables any transport layer (HTTP, Service Bus, gRPC) without changing agent logic.
+5. **Graceful degradation at every layer** — `_call_with_retry()` + static fallbacks mean partial failures don't cascade.
+
+---
+
+## Deployment Status
+
+| Component | Current | Production Path |
+|---|---|---|
+| Backend API | `localhost:8001` (FastAPI + Uvicorn) | Azure App Service / Container Apps |
+| Frontend | `localhost:3000` (React) | Azure Static Web Apps |
+| Azure OpenAI | ✅ Cloud — foundry-jmagno-2026 | Same, upgrade to PTU |
+| Azure AI Search | ✅ Cloud — search-jmagno-2026 | Same, add semantic ranker |
+| Azure Cosmos DB | ✅ Cloud — cosmos-jmagno-2026 | Same, add provisioned RU/s |
+| Azure Blob | ✅ Cloud — storagejmagno2026 | Same |
+
+> **Note:** Local execution was necessary due to Azure free subscription VM quota constraints (zero App Service quota available). All AI, storage, and search services are live Azure cloud resources. The compute layer is the only local component.

@@ -102,6 +102,8 @@ export default function ResultsDashboard({ finalPlan }) {
       withinBudget: cost?.within_budget ?? cost?.is_within_budget,
       processingTime: finalPlan?.total_processing_time_seconds,
       negotiationRounds: finalPlan?.negotiation_rounds_used ?? 0,
+      recommendedPrice: cost?.recommended_selling_price_php ?? null,
+      marginPct: cost?.estimated_margin_percent ?? null,
     };
   }, [finalPlan]);
 
@@ -119,6 +121,10 @@ export default function ResultsDashboard({ finalPlan }) {
       dish: d.name,
       servings: d.servings,
       category: d.category || '-',
+      kcal:    d.nutrition?.calories   != null ? `${d.nutrition.calories} kcal`    : '-',
+      protein: d.nutrition?.protein_g  != null ? `${d.nutrition.protein_g}g`       : '-',
+      carbs:   d.nutrition?.carbs_g    != null ? `${d.nutrition.carbs_g}g`         : '-',
+      fat:     d.nutrition?.fat_g      != null ? `${d.nutrition.fat_g}g`           : '-',
     })), [menuItems]);
 
   const costRows = useMemo(() => {
@@ -253,9 +259,13 @@ export default function ResultsDashboard({ finalPlan }) {
           )}
           <SafeTable
             columns={[
-              { key: 'dish', label: 'Dish' },
+              { key: 'dish',     label: 'Dish' },
               { key: 'servings', label: 'Servings' },
               { key: 'category', label: 'Category' },
+              { key: 'kcal',    label: 'Calories' },
+              { key: 'protein', label: 'Protein' },
+              { key: 'carbs',   label: 'Carbs' },
+              { key: 'fat',     label: 'Fat' },
             ]}
             rows={menuRows}
             emptyText="No menu items."
@@ -266,6 +276,28 @@ export default function ResultsDashboard({ finalPlan }) {
       {/* Cost tab */}
       {activeTab === 'cost' && (
         <div className="tabPanel">
+          {/* Profitability card */}
+          {summary.recommendedPrice != null && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '12px',
+              marginBottom: '4px',
+            }}>
+              <div className="summaryItem">
+                <div className="summaryLabel">Recommended Selling Price</div>
+                <div className="summaryValue" style={{ fontSize: '16px', color: 'var(--color-ok)' }}>
+                  ₱{formatPhp(summary.recommendedPrice)}
+                </div>
+              </div>
+              <div className="summaryItem">
+                <div className="summaryLabel">Est. Profit Margin</div>
+                <div className="summaryValue" style={{ fontSize: '16px', color: 'var(--color-ok)' }}>
+                  {summary.marginPct != null ? `${summary.marginPct.toFixed(0)}%` : '-'}
+                </div>
+              </div>
+            </div>
+          )}
           <div className="negotiationPanel">
             <div className="negotiationTitle">
               💰 Accountant — Budget Review

@@ -66,6 +66,12 @@ class EventSpecification(BaseModel):
     dietary_restrictions: List[str] = Field(default_factory=list)
     allergies: List[str] = Field(default_factory=list)
     notes: Optional[str] = None
+    event_time: Optional[str] = Field(
+        default=None,
+        description="Event start time in HH:MM 24h format. Set by the orchestration engine "
+        "from the UI form input — not extracted by the Concierge agent. Persisted in "
+        "FinalPlan.event_specification so the /adapt endpoint can recover the correct time.",
+    )
 
 
 class NutritionInfo(BaseModel):

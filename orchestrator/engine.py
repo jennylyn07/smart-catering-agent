@@ -671,7 +671,9 @@ async def adapt_from_existing_plan(
                     message="Accountant returned an unexpected payload during negotiation.",
                 )
 
-    event_datetime_iso = f"{event_spec.event_date}T18:00:00+08:00"
+    # Use the event_time stored in EventSpecification (set during initial orchestration).
+    # Defaults to '18:00' for orders created before event_time propagation was implemented.
+    event_datetime_iso = f"{event_spec.event_date}T{event_spec.event_time or '18:00'}:00+08:00"
     logistics_plan_message = await run_logistics(
         cost_report_message=cost_report_message,
         event_spec=event_spec,
@@ -800,6 +802,11 @@ async def run_orchestration(
             progress_callback("concierge", "done")
 
         event_spec = concierge_message.payload
+        # Inject event_time from the form into EventSpecification so it propagates
+        # through the full pipeline and is persisted in FinalPlan.event_specification.
+        # This allows the /adapt endpoint to recover the correct event time.
+        event_time_safe = event_time if event_time else "18:00"
+        event_spec = event_spec.model_copy(update={"event_time": event_time_safe})
 
         past_orders = await query_past_orders(
             cuisine_preferences=event_spec.cuisine_preferences or [],
@@ -1070,8 +1077,7 @@ async def run_orchestration(
         if progress_callback:
             progress_callback("accountant", "done")
 
-        event_time_safe = event_time if event_time else "18:00"
-        event_datetime_iso = f"{ctx.event_spec.event_date}T{event_time_safe}:00+08:00"
+        event_datetime_iso = f"{ctx.event_spec.event_date}T{ctx.event_spec.event_time or '18:00'}:00+08:00"
         async def _logistics_call():
             if kernel is not None and kernel_function is not None:
                 result = await kernel.invoke(

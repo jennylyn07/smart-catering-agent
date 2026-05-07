@@ -1084,6 +1084,56 @@ Files: README.md, orchestrator/engine.py,
 - [x] Phase 8: Submission-day hardening — logger NameError fix, async health check, final push
 - [x] Phase 9: UX completeness — event time field, order history spec details, procurement date fix, Head Chef rationale key fix
 - [x] Phase 10: Output quality tests (A–D), reasoning mismatch fix, architecture principle correction, UI polish (layout, typo, navigation buttons)
+- [x] Phase 11: Full architecture + documentation scan, adapt endpoint T18:00 bug fix, event_time propagation complete
+
+### 📋 PHASE 11 — ARCHITECTURE & DOCUMENTATION AUDIT
+
+**Scope:** Full scan of all 5 agents, orchestration engine, API layer, Cosmos store,
+and all documentation (README, ARCHITECTURE.md, DEVLOG).
+
+**A — Architecture Principle Alignment (all 5 agents)**
+
+| Agent | Temp | Hard constraints | GPT role | Fallback |
+|---|---|---|---|---|
+| Concierge | 0.0 | `_coerce_event_spec()` in code | Parsing/intent only | Error escalation |
+| Head Chef | 0.8 | Post-AI allergy+dietary code check | Dish selection + rationale | Honest fallback msg |
+| Accountant | 0.0 | Math computed in code before GPT | Flagging judgment only | Top-2 static fallback |
+| Logistics | 0.3 | CPM + staffing ratios in code | Notes interpretation | `graceful_degradation` flag |
+| Stock Manager | 0.2 | Perishable ID in code | Waste + supplier rationale | `_STATIC_FALLBACK` strings |
+
+All 5 agents: ✅ Aligned with architecture principle.
+
+**B — CRITICAL BUG FOUND & FIXED (engine.py line 674)**
+- **Bug:** `adapt_from_existing_plan()` had hardcoded `T18:00:00+08:00` — same bug
+  we fixed in `run_orchestration` was missed in the bonus `/adapt` endpoint.
+  Calling `/adapt` (guest count, dietary, or budget change) would always produce
+  a logistics timeline with 18:00 service start, ignoring the original event time.
+- **Root cause:** `event_time` was passed to `run_orchestration()` as a loose
+  parameter but never stored anywhere in the pipeline data. `adapt_from_existing_plan()`
+  receives the `FinalPlan` (which has `event_specification`) but couldn’t recover
+  the event time from it.
+- **Fix (3-part):**
+  1. `utils/json_schema.py`: Added `event_time: Optional[str] = None` to
+     `EventSpecification` (Optional, default None — Concierge output unaffected).
+  2. `orchestrator/engine.py` (~line 802): After Concierge returns, inject
+     `event_time_safe` into event_spec via `model_copy(update={"event_time":...})`
+     so it propagates into `FinalPlan.event_specification` and is persisted in Cosmos DB.
+  3. `orchestrator/engine.py` (line 674): Replace hardcoded `T18:00:00` with
+     `event_spec.event_time or '18:00'`.
+  4. `orchestrator/engine.py` (line 1073-74): Simplify to use `ctx.event_spec.event_time`.
+
+**C — Documentation Alignment**
+- README.md: ✅ All claims accurate. Agent descriptions, Azure services, 23/23 tests,
+  limitations 1–8 all correct.
+- ARCHITECTURE.md: ✅ Pipeline diagram, invariants table, tech stack, scalability
+  section all accurate. Minor: UI Form node description doesn’t mention event_time
+  structured input (cosmetic, non-critical).
+- DEVLOG.md: ✅ Phases 1–11 complete.
+
+**D — Compile Verification**
+- `utils/json_schema.py` — OK
+- `orchestrator/engine.py` — OK
+- `agents/head_chef.py` — OK
 
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT
 

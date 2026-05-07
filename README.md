@@ -372,13 +372,16 @@ Azure Container Apps.
 8. **Head Chef reasoning on highly constrained menus** —
    Per-dish GPT reasoning (temp 0.8) may return empty
    rationale fields when fewer than 5 recipes match the
-   combined constraints. In this case the system falls
-   back to a deterministic synthetic rationale built from
-   recipe metadata and event constraints (e.g.,
-   *"Grilled Chicken — main option (gluten allergen-free)"*).
+   combined constraints. Per the architecture principle
+   (*"Soft judgments belong to GPT"*), the system does
+   **not** fabricate reasoning from code. It falls back
+   to a plain honest acknowledgement: *"Menu curated
+   from the knowledge base to satisfy the event's
+   dietary and allergy constraints. Per-dish reasoning
+   was not available for this selection."*
    Dish selection and constraint enforcement are always
-   deterministic code, not GPT — only the explanatory
-   text degrades.
+   deterministic code — only the explanatory text is
+   affected.
 
 ---
 

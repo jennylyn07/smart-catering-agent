@@ -1053,6 +1053,23 @@ Files: README.md, orchestrator/engine.py,
   → manual fallback only if AutoGen raises.
 - All 5 backend files compile clean (`py_compile` check).
 
+**G — Architecture Principle Correction (head_chef.py rollback)**
+- **Issue:** Fix 2 initially introduced a synthetic rationale built from
+  recipe metadata (`"Grilled Chicken — main option (gluten allergen-free)"`).
+  This violated the core architecture principle:
+  *"Soft judgments belong to GPT — not to deterministic code."*
+  Fabricating per-dish reasoning from code is architecturally indistinguishable
+  from having GPT generate it, but it bypasses the AI layer entirely.
+- **Correct fix:** Reverted to a simple honest acknowledgement fallback:
+  *"Menu curated from the knowledge base to satisfy the event's dietary and
+  allergy constraints. Per-dish reasoning was not available for this selection."*
+  This is a graceful degradation *message*, not a fake AI reasoning output.
+- **Rule reinforced:** Deterministic code handles hard constraints, math, and
+  structure. GPT handles soft judgments. If GPT cannot provide a judgment,
+  the system says so honestly — it does not substitute code-generated content.
+- **README:** Limitation 8 updated to reflect the honest fallback behavior
+  and explicitly reference the architecture principle.
+
 **Git commits made:**
 - See commit hash after push
 
@@ -1066,6 +1083,7 @@ Files: README.md, orchestrator/engine.py,
 - [x] Phase 7: Final audit, SK fix, ARCHITECTURE.md, honest claim verification
 - [x] Phase 8: Submission-day hardening — logger NameError fix, async health check, final push
 - [x] Phase 9: UX completeness — event time field, order history spec details, procurement date fix, Head Chef rationale key fix
+- [x] Phase 10: Output quality tests (A–D), reasoning mismatch fix, architecture principle correction, UI polish (layout, typo, navigation buttons)
 
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT
 

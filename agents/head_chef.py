@@ -1270,25 +1270,11 @@ async def run_head_chef(
             past_context=past_context,
         )
 
-        # Use GPT-generated rationale if available.
-        # When GPT returns empty rationale (common for very small constrained result sets
-        # where GPT has little to say), build a deterministic synthetic rationale from
-        # recipe metadata and constraint context. This is always accurate and informative.
-        if gpt_rationale:
-            rationale = gpt_rationale
-        elif menu_items:
-            constraint_tags: list[str] = []
-            if event_spec.allergies:
-                constraint_tags.append(f"{', '.join(event_spec.allergies)} allergen-free")
-            if event_spec.dietary_restrictions:
-                constraint_tags.append(f"{'/'.join(event_spec.dietary_restrictions)}-compliant")
-            tag_str = f" ({', '.join(constraint_tags)})" if constraint_tags else ""
-            rationale = " | ".join(
-                f"{item.name} \u2014 {item.category or 'dish'} option{tag_str}"
-                for item in menu_items
-            )
-        else:
-            rationale = "Menu selected from the recipe knowledge base while excluding dishes that match the event allergy list."
+        # Use GPT-generated rationale. If GPT returns empty rationale (non-deterministic
+        # edge case on very small constrained result sets), fall back to an honest
+        # acknowledgement. Soft judgments belong to GPT — we do NOT fabricate per-dish
+        # reasoning from code (architecture principle).
+        rationale = gpt_rationale or "Menu curated from the knowledge base to satisfy the event's dietary and allergy constraints. Per-dish reasoning was not available for this selection."
 
         if (
             len(menu_items) < 5

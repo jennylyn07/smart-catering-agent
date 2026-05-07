@@ -109,7 +109,10 @@ function App() {
           'Content-Type': 'application/json',
           'X-API-Key': apiKey,
         },
-        body: JSON.stringify({ raw_customer_text }),
+        body: JSON.stringify({
+          raw_customer_text,
+          event_time: payload.event_time || '18:00',
+        }),
       });
 
       const body = await response.json().catch(() => null);
@@ -198,6 +201,19 @@ function App() {
     setErrorMessage(null);
   }
 
+  function handleClearOrder() {
+    setFinalPlan(null);
+    setProcessingTimeSeconds(null);
+    setNegotiationRoundsUsed(null);
+    setErrorMessage(null);
+    setAgentStatuses({});
+  }
+
+  function handleReturnFromHistory() {
+    setShowHistory(false);
+    setSelectedOrder(null);
+  }
+
   return (
     <div className="container">
       <div className="appHeader">
@@ -205,6 +221,23 @@ function App() {
           Smart Catering <span>System</span>
         </h1>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          {!showHistory && finalPlan && (
+            <button
+              onClick={handleClearOrder}
+              style={{
+                background: 'none',
+                border: '1px solid var(--neu-border, #B5BFC6)',
+                borderRadius: '999px',
+                padding: '6px 16px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: '600',
+                color: 'var(--neu-dark, #6E7F8D)',
+              }}
+            >
+              + New Order
+            </button>
+          )}
           <button
             onClick={handleShowHistory}
             style={{
@@ -222,7 +255,7 @@ function App() {
           </button>
           {showHistory && (
             <button
-              onClick={handleNewOrder}
+              onClick={handleReturnFromHistory}
               style={{
                 background: 'var(--color-accent)',
                 border: 'none',
@@ -234,7 +267,7 @@ function App() {
                 color: 'white',
               }}
             >
-              + New Order
+              ← Return
             </button>
           )}
         </div>
@@ -354,6 +387,35 @@ function App() {
                         {selectedOrder?.order_id === order.order_id && (
                           <tr key={`${i}-detail`}>
                             <td colSpan={6} style={{ padding: '0' }}>
+                              {/* Order spec details row */}
+                              <div style={{
+                                padding: '12px 20px',
+                                background: 'var(--neu-mid)',
+                                borderBottom: '1px solid var(--neu-border)',
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                gap: '16px',
+                                fontSize: '13px',
+                              }}>
+                                {order.notes && (
+                                  <div>
+                                    <span style={{ fontWeight: '700', color: 'var(--neu-ink-muted)', marginRight: '6px' }}>📝 Notes:</span>
+                                    <span>{order.notes}</span>
+                                  </div>
+                                )}
+                                {order.dietary_restrictions?.length > 0 && (
+                                  <div>
+                                    <span style={{ fontWeight: '700', color: 'var(--neu-ink-muted)', marginRight: '6px' }}>🥗 Dietary:</span>
+                                    <span>{order.dietary_restrictions.join(', ')}</span>
+                                  </div>
+                                )}
+                                {order.allergies?.length > 0 && (
+                                  <div>
+                                    <span style={{ fontWeight: '700', color: 'var(--neu-ink-muted)', marginRight: '6px' }}>⚠️ Allergies:</span>
+                                    <span>{order.allergies.join(', ')}</span>
+                                  </div>
+                                )}
+                              </div>
                               {selectedOrder.fullPlan ? (
                                 <div style={{ padding: '16px' }}>
                                   <ResultsDashboard

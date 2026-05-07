@@ -305,7 +305,7 @@ def _head_chef_gpt_system_prompt() -> str:
         "- Match the occasion: weddings and debuts call for elevated, presentable dishes; corporate events need easy-to-serve, portionable items; casual parties favor familiar comfort food.\n\n"
         "OUTPUT FORMAT (strict):\n"
         "Return ONLY a valid JSON array of objects. Each object MUST be:\n"
-        '{"id": "<recipe_id>", "reason": "<short reason>"}\n'
+        '{"id": "<recipe_id>", "rationale": "<short reason>"}\n'
         "No extra keys. No markdown. No additional text.\n\n"
         "MENU ENGINEERING FRAMEWORK:\n"
         "Apply menu engineering quadrant thinking to all menu decisions:\n"
@@ -860,8 +860,16 @@ async def _build_menu_items(
             past_context=past_context,
         )
 
-        reasons = [str(r.get("rationale")).strip() for r in gpt_rows if str(r.get("rationale") or "").strip()]
-        gpt_rationale = " | ".join(reasons) if reasons else None
+        # Build a rationale map keyed by recipe ID. We defer the final reasoning
+        # extraction to AFTER the constraint filter so that dishes removed by the
+        # allergen/dietary check don’t appear in the Head Chef reasoning block.
+        # Accepts both ‘rationale’ and ‘reason’ keys for backward compatibility.
+        gpt_rationale_map: dict[str, str] = {}
+        for r in gpt_rows:
+            rid = str(r.get("id") or "").strip()
+            rat = (str(r.get("rationale") or r.get("reason") or "")).strip()
+            if rid and rat:
+                gpt_rationale_map[rid] = rat
 
         by_id = {
             str(r.get("id") or "").strip(): r
@@ -893,6 +901,12 @@ async def _build_menu_items(
                 if str(r.get("category") or "").strip().lower() == category:
                     selected.append(r)
                     break
+
+        # Extract reasoning only for dishes that survived constraint filtering.
+        # Dishes added from safe_pool (no GPT rationale) are intentionally excluded.
+        selected_ids_ordered = [str(r.get("id") or "").strip() for r in selected]
+        reasons = [gpt_rationale_map[rid] for rid in selected_ids_ordered if rid in gpt_rationale_map]
+        gpt_rationale = " | ".join(reasons) if reasons else None
 
     except Exception as exc:  # noqa: BLE001
         log_event(
@@ -1256,7 +1270,25 @@ async def run_head_chef(
             past_context=past_context,
         )
 
-        rationale = gpt_rationale or "Menu selected from the recipe knowledge base while excluding dishes that match the event allergy list."
+        # Use GPT-generated rationale if available.
+        # When GPT returns empty rationale (common for very small constrained result sets
+        # where GPT has little to say), build a deterministic synthetic rationale from
+        # recipe metadata and constraint context. This is always accurate and informative.
+        if gpt_rationale:
+            rationale = gpt_rationale
+        elif menu_items:
+            constraint_tags: list[str] = []
+            if event_spec.allergies:
+                constraint_tags.append(f"{', '.join(event_spec.allergies)} allergen-free")
+            if event_spec.dietary_restrictions:
+                constraint_tags.append(f"{'/'.join(event_spec.dietary_restrictions)}-compliant")
+            tag_str = f" ({', '.join(constraint_tags)})" if constraint_tags else ""
+            rationale = " | ".join(
+                f"{item.name} \u2014 {item.category or 'dish'} option{tag_str}"
+                for item in menu_items
+            )
+        else:
+            rationale = "Menu selected from the recipe knowledge base while excluding dishes that match the event allergy list."
 
         if (
             len(menu_items) < 5

@@ -38,6 +38,7 @@ function toggleSetValue(setter) {
 export default function OrderForm({ isLoading, onSubmit }) {
   const [eventName, setEventName] = useState('');
   const [eventDate, setEventDate] = useState('');
+  const [eventTime, setEventTime] = useState('18:00');
   const [location, setLocation] = useState('');
   const [guestCount, setGuestCount] = useState(50);
   const [budgetPhp, setBudgetPhp] = useState(45000);
@@ -56,6 +57,7 @@ export default function OrderForm({ isLoading, onSubmit }) {
     const payload = {
       event_name: eventName,
       event_date: eventDate,
+      event_time: eventTime,
       location,
       guest_count: Number(guestCount),
       budget_php: Number(budgetPhp),
@@ -73,18 +75,20 @@ export default function OrderForm({ isLoading, onSubmit }) {
   return (
     <form className="orderForm" onSubmit={handleSubmit}>
       <div className="formGrid">
-        <label className="field">
+        {/* Row 1: Event Name — full width */}
+        <label className="field span2">
           <span className="labelText">Event Name</span>
           <input
             type="text"
             value={eventName}
             onChange={(e) => setEventName(e.target.value)}
-            placeholder="e.g., Company Anniversary"
+            placeholder="e.g., Company Anniversary Dinner"
             disabled={isLoading}
             required
           />
         </label>
 
+        {/* Row 2: Date | Time — side by side */}
         <label className="field">
           <span className="labelText">Event Date</span>
           <input
@@ -97,6 +101,18 @@ export default function OrderForm({ isLoading, onSubmit }) {
           />
         </label>
 
+        <label className="field">
+          <span className="labelText">Event Time</span>
+          <input
+            type="time"
+            value={eventTime}
+            onChange={(e) => setEventTime(e.target.value)}
+            disabled={isLoading}
+            required
+          />
+        </label>
+
+        {/* Row 3: Location — full width */}
         <label className="field span2">
           <span className="labelText">Location</span>
           <input
@@ -109,6 +125,7 @@ export default function OrderForm({ isLoading, onSubmit }) {
           />
         </label>
 
+        {/* Row 4: Guests | Budget — side by side */}
         <label className="field">
           <span className="labelText">Number of Guests</span>
           <input

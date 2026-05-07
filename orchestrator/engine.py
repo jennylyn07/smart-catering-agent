@@ -3,11 +3,14 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import logging
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import uuid4
+
+logger = logging.getLogger(__name__)
 
 from pydantic import ValidationError
 
@@ -151,14 +154,17 @@ if kernel_function is not None:
             self,
             cost_report_message: AgentMessage,
             session_id: str,
+            event_date_fallback: str = "",
         ) -> AgentMessage:
             # logistics_plan_message is always None in parallel execution;
             # excluded from SK signature to avoid Union[AgentMessage,None]
-            # marshalling issues in SK 1.x
+            # marshalling issues in SK 1.x.
+            # event_date_fallback is a plain str — safe for SK 1.x marshalling.
             return await run_stock_manager(
                 logistics_plan_message=None,
                 cost_report_message=cost_report_message,
                 session_id=session_id,
+                event_date_fallback=event_date_fallback or None,
             )
 
 
@@ -733,12 +739,14 @@ async def adapt_from_existing_plan(
 async def run_orchestration(
     *,
     raw_customer_request: str,
+    event_time: str = "18:00",
     progress_callback=None,
 ) -> AgentMessage:
     """Run the full Concierge→Head Chef→Accountant→Logistics→Stock Manager pipeline.
 
     Args:
         raw_customer_request: Raw customer text used as input to Concierge.
+        event_time: Event start time in HH:MM (24h) format. Defaults to '18:00'.
 
     Returns:
         An AgentMessage containing a FinalPlan payload, or an ErrorMessage on failure.
@@ -1062,7 +1070,8 @@ async def run_orchestration(
         if progress_callback:
             progress_callback("accountant", "done")
 
-        event_datetime_iso = f"{ctx.event_spec.event_date}T18:00:00+08:00"
+        event_time_safe = event_time if event_time else "18:00"
+        event_datetime_iso = f"{ctx.event_spec.event_date}T{event_time_safe}:00+08:00"
         async def _logistics_call():
             if kernel is not None and kernel_function is not None:
                 result = await kernel.invoke(
@@ -1083,6 +1092,8 @@ async def run_orchestration(
 
         # Stock Manager runs in parallel with Logistics (both only need the cost_report).
         # logistics_plan_message is not needed at this stage — it runs concurrently.
+        # event_date_fallback is passed so GPT reasons about the actual event date,
+        # not today's date (which is the datetime.now() fallback in run_stock_manager).
         async def _stock_manager_call():
             if kernel is not None and kernel_function is not None:
                 result = await kernel.invoke(
@@ -1090,6 +1101,7 @@ async def run_orchestration(
                     plugin_name=plugin_name,
                     cost_report_message=cost_report_message,
                     session_id=ctx.session_id,
+                    event_date_fallback=ctx.event_spec.event_date,
                 )
                 return result.value if result is not None else None
             return await run_stock_manager(

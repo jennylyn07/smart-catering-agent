@@ -259,7 +259,7 @@ SK Memory Plugins for persistent agent context
 
 ## Integration Test Suite
 
-22/23 integration checks passing across 6 sections
+23/23 integration checks passing across 6 sections
 (these are end-to-end smoke tests that validate pipeline 
 behavior — dietary enforcement, cost scaling, edge case 
 handling — not unit tests of individual computations):
@@ -271,7 +271,7 @@ handling — not unit tests of individual computations):
 | Section 3: Special notes handling | 3/3 ✅ |
 | Section 4: Bonus features | 5/5 ✅ |
 | Section 5: Cost scaling reality check | 1/1 ✅ |
-| Section 6: Edge cases | 5/6 ⚠️ (Edge Case 6 timing — Azure free tier latency, logic correct) |
+| Section 6: Edge cases | 6/6 ✅ |
 
 ---
 
@@ -359,6 +359,26 @@ Azure Container Apps.
    elapsed time and time-based agent advancement during
    processing. True per-agent real-time status requires
    an async pipeline (production roadmap).
+7. **Knowledge base constraint coverage** — The 68-recipe
+   knowledge base covers Filipino, Western, Chinese, and
+   International cuisine. Applying 3+ simultaneous hard
+   constraints (e.g., Gluten-free + Western, or
+   Vegetarian + Halal + Nuts + Seafood allergy) eliminates
+   most candidates from the filter, potentially yielding
+   fewer than 5 dishes. The UI surfaces this honestly as a
+   warning banner. Expanding `knowledge_base/recipes.json`
+   with more constraint-compatible recipes would improve
+   coverage.
+8. **Head Chef reasoning on highly constrained menus** —
+   Per-dish GPT reasoning (temp 0.8) may return empty
+   rationale fields when fewer than 5 recipes match the
+   combined constraints. In this case the system falls
+   back to a deterministic synthetic rationale built from
+   recipe metadata and event constraints (e.g.,
+   *"Grilled Chicken — main option (gluten allergen-free)"*).
+   Dish selection and constraint enforcement are always
+   deterministic code, not GPT — only the explanatory
+   text degrades.
 
 ---
 
@@ -399,7 +419,7 @@ smart-catering-agent/
 │   └── suppliers.json      ← Supplier data
 ├── frontend/src/           ← React UI
 ├── tests/
-│   └── test_correctness.py ← 22/23 integration checks
+│   └── test_correctness.py ← 23/23 integration checks
 └── scripts/
     └── setup_search_index.py ← Azure AI Search index builder (70 docs)
 ```

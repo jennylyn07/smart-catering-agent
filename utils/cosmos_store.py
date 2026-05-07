@@ -292,19 +292,24 @@ async def get_recent_orders(*, limit: int = 20) -> list:
                     continue
                 result.append({
                     "order_id": order_id,
-                    "event_name": event_spec.get("event_name") 
+                    "event_name": event_spec.get("event_name")
                                   or "Unnamed Event",
                     "event_date": event_spec.get("event_date") or "",
                     "guest_count": event_spec.get("guest_count") or 0,
                     "budget_php": event_spec.get("budget_php") or 0,
                     "total_cost_php": cost.get("total_cost_php") or 0,
                     "within_budget": (
-                        cost.get("within_budget") 
+                        cost.get("within_budget")
                         or cost.get("is_within_budget")
                     ),
                     "cuisine_preferences": (
                         event_spec.get("cuisine_preferences") or []
                     ),
+                    "dietary_restrictions": (
+                        event_spec.get("dietary_restrictions") or []
+                    ),
+                    "allergies": event_spec.get("allergies") or [],
+                    "notes": event_spec.get("notes") or "",
                 })
             return result
         finally:

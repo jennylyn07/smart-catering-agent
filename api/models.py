@@ -57,6 +57,11 @@ class CateringRawTextOrderRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     raw_customer_text: str = Field(..., min_length=1)
+    event_time: str = Field(
+        default="18:00",
+        description="Event start time in HH:MM (24h) format. Defaults to 18:00.",
+        pattern=r"^\d{2}:\d{2}$",
+    )
 
 
 class CateringAdaptRequest(BaseModel):

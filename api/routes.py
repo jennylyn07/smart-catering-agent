@@ -71,21 +71,19 @@ async def health_agents() -> dict:
     except Exception as exc:
         results["openai"] = {"status": "degraded", "error": str(exc)[:120]}
 
-    # ── Azure Cosmos DB ─────────────────────────────────────────────────────
+    # ── Azure Cosmos DB ─────────────────────────────────────────────
     try:
-        cosmos = create_cosmos_client()
-        db = cosmos.get_database_client("smart-catering")
-        props = await asyncio.get_event_loop().run_in_executor(None, db.read)
+        async with create_cosmos_client() as cosmos:
+            db = cosmos.get_database_client("smart-catering")
+            props = await db.read()
         results["cosmos"] = {"status": "ok", "database": props.get("id", "smart-catering")}
     except Exception as exc:
         results["cosmos"] = {"status": "degraded", "error": str(exc)[:120]}
 
-    # ── Azure AI Search ─────────────────────────────────────────────────────
+    # ── Azure AI Search ─────────────────────────────────────────────
     try:
-        search = create_search_client(index_name="catering-knowledge-base")
-        count = await asyncio.get_event_loop().run_in_executor(
-            None, lambda: search.get_document_count()
-        )
+        async with create_search_client(index_name="catering-knowledge-base") as search:
+            count = await search.get_document_count()
         results["search"] = {"status": "ok", "document_count": count}
     except Exception as exc:
         results["search"] = {"status": "degraded", "error": str(exc)[:120]}
@@ -164,6 +162,7 @@ async def create_catering_order(
 
     result = await run_orchestration(
         raw_customer_request=request.raw_customer_text,
+        event_time=request.event_time,
         progress_callback=_publish,
     )
 

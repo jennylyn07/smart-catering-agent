@@ -1,4 +1,4 @@
-﻿### 📋 SECTION 1: DEV LOG (Technical Record)
+### 📋 SECTION 1: DEV LOG (Technical Record)
 
 #### Session 1 — 2026-04-18
 **What we built:**
@@ -955,6 +955,117 @@ Files: README.md, orchestrator/engine.py,
 - [x] Phase 5: Documentation + submission prep
 - [x] Phase 6: AutoGen GroupChat, recipe KB expansion, monitoring endpoint
 - [x] Phase 7: Final audit, SK fix, ARCHITECTURE.md, honest claim verification
+- [x] Phase 8: Submission-day hardening — async health check, DEVLOG, final push
+
+#### Session 34 — 2026-05-07 (Submission Day — Critical Bug Fix)
+**Goal:** Audit AutoGen GroupChat integration for correctness, commit and push final state.
+
+**What we built / fixed:**
+
+**A — Critical Bug: `logger` NameError in engine.py (SILENT FAILURE)**
+- **Root cause:** `logger.info()` and `logger.warning()` were called in 6 places inside
+  `engine.py` (AutoGen negotiation block + `reformulation_exhausted` fallback) but
+  `import logging` and `logger = logging.getLogger(__name__)` were never added.
+- **Symptom:** Every time the over-budget path ran, Python raised `NameError: name
+  'logger' is not defined`. This was caught silently by `except Exception as autogen_exc`
+  and the code fell back to the manual negotiation loop — making it appear to work.
+  **AutoGen GroupChat was never actually executing.**
+- **Fix:** Added `import logging` to the stdlib import block and
+  `logger = logging.getLogger(__name__)` immediately after — two lines, one file.
+- **Files changed:** `orchestrator/engine.py`
+- **Impact:** AutoGen GroupChat negotiation now runs correctly as the primary negotiation
+  path when plans are over budget. Manual fallback loop remains as safety net.
+
+**B — Health Check Async Context Manager Fix (api/routes.py)**
+- `GET /api/v1/health/agents`: replaced bare client + `run_in_executor()` pattern with
+  proper `async with create_cosmos_client() as cosmos:` and
+  `async with create_search_client(...) as search:` context managers.
+- Ensures the health endpoint cleanly closes connections after each probe.
+
+**C — Procurement Date Bug Fix (orchestrator/engine.py, agents/stock_manager.py)**
+- **Root cause:** In parallel execution mode, `logistics_plan_message` is always `None`
+  (Stock Manager and Logistics run concurrently via `asyncio.gather()`). `run_stock_manager()`
+  falls back to `event_date_fallback` when `logistics_plan is None`, but the `kernel.invoke()`
+  path through `CateringAgentsPlugin.stock_manager()` never passed `event_date_fallback`.
+  The fallback of last resort is `datetime.now(timezone.utc).date()` — today's date.
+- **Symptom:** GPT received `event_date = "2026-05-07"` (today) for a June 1 event and
+  correctly (given the wrong input) reasoned: *"order perishables to arrive May 6,
+  vegetables on May 7"* — 25 days before the correct procurement window.
+  The Logistics timeline correctly showed "All ingredients procured: May 31" — a clear
+  mismatch visible in the UI Procurement tab vs. Timeline tab.
+- **Fix:**
+  - Added `event_date_fallback: str = ""` to `CateringAgentsPlugin.stock_manager()` —
+    a plain `str` param is safe for SK 1.x marshalling (unlike `Optional[AgentMessage]`)
+  - Passed `event_date_fallback=ctx.event_spec.event_date` in both the `kernel.invoke()`
+    call and the direct-call fallback in `_stock_manager_call()`
+  - Inside plugin: `event_date_fallback or None` converts empty string to None cleanly
+- **Impact:** GPT now reasons about the actual event date. Procurement timing advice aligns
+  with the Logistics timeline (e.g., "order May 31" for a June 1 event).
+
+**D — Head Chef Rationale Key Mismatch (agents/head_chef.py)**
+- **Root cause:** `_head_chef_gpt_system_prompt()` instructed GPT to return
+  `{"id": "...", "reason": "..."}` (line 308) but the user prompt, output schema,
+  and extraction code all used `"rationale"`. With `temperature=0.8`, GPT
+  non-deterministically obeyed either instruction.
+- **Symptom:** On some runs (e.g., same event re-run with fewer guests) GPT returned
+  `"reason"` instead of `"rationale"`. The extraction `r.get("rationale")` returned
+  `None`, `gpt_rationale` collapsed to `None`, and the UI showed the static fallback:
+  *"Menu selected from the recipe knowledge base while excluding dishes that match the
+  event allergy list."* — instead of the per-dish GPT reasoning.
+- **Fix:**
+  - System prompt key corrected to `"rationale"` (now consistent everywhere)
+  - Extraction logic updated to accept both `r.get("rationale") or r.get("reason")`
+    as a defensive fallback for any cached GPT responses still using the old key
+- **Impact:** Head Chef reasoning text now consistently shows per-dish GPT rationale
+  across all runs regardless of guest count or other input variation.
+
+**E — Event Time Field (end-to-end: OrderForm → routes → engine)**
+- **Root cause:** `engine.py` hardcoded `T18:00:00+08:00` for all logistics timelines,
+  so lunch/breakfast events always generated wrong service-start times.
+- **Fix (4 files):**
+  - `OrderForm.js`: Added `event_time` state + `<input type="time">` field (default 18:00)
+  - `App.js`: Passes `event_time` in the POST body alongside `raw_customer_text`
+  - `api/models.py`: Added `event_time: str = "18:00"` field to `CateringRawTextOrderRequest`
+  - `api/routes.py`: Threads `event_time` into `run_orchestration()`
+  - `orchestrator/engine.py`: `run_orchestration()` now accepts `event_time: str = "18:00"`
+    and builds `event_datetime_iso = f"{date}T{event_time}:00+08:00"` from it
+- **Impact:** Clients who specify e.g. 12:00 will now see a correct lunch-hour
+  logistics timeline and CPM schedule.
+
+**F — Order History Spec Details (App.js + cosmos_store.py)**
+- **Root cause:** `get_recent_orders()` only returned 5 fields (order_id, event_name,
+  event_date, guest_count, budget_php, total_cost_php, within_budget); notes, dietary
+  restrictions, and allergies written at order time were stored in Cosmos but never
+  surfaced to the frontend history view.
+- **Fix:**
+  - `utils/cosmos_store.py`: Added `notes`, `dietary_restrictions`, `allergies` to the
+    `get_recent_orders()` result dict — all already present in the Cosmos document's
+    `event_specification` field.
+  - `App.js`: Expanded row in the history table now shows a detail strip with
+    📝 Notes, 🥗 Dietary, ⚠️ Allergies when those fields are non-empty.
+- **Impact:** Order history now surfaces the full client brief, not just cost/date.
+
+**Verification:**
+- `logger` usage confirmed at lines 594, 618, 629, 907, 930, 941 — all now resolvable.
+- `autogen_negotiation.py` logic is structurally correct (parses JSON from GroupChat,
+  returns flagged/reformulated dish lists, rounds_used).
+- `engine.py` wiring confirmed: AutoGen path → `revise_menu_plan()` → `run_accountant()`
+  → manual fallback only if AutoGen raises.
+- All 5 backend files compile clean (`py_compile` check).
+
+**Git commits made:**
+- See commit hash after push
+
+**Progress Tracker:**
+- [x] Phase 1: Foundation
+- [x] Phase 2: Core pipeline
+- [x] Phase 3: Azure integration
+- [x] Phase 4: Polish + testing
+- [x] Phase 5: Documentation + submission prep
+- [x] Phase 6: AutoGen GroupChat, recipe KB expansion, monitoring endpoint
+- [x] Phase 7: Final audit, SK fix, ARCHITECTURE.md, honest claim verification
+- [x] Phase 8: Submission-day hardening — logger NameError fix, async health check, final push
+- [x] Phase 9: UX completeness — event time field, order history spec details, procurement date fix, Head Chef rationale key fix
 
 ### 📚 SECTION 2: PERSONAL LEARNING REPORT
 

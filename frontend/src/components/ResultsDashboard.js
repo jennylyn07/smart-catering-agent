@@ -235,7 +235,7 @@ export default function ResultsDashboard({ finalPlan }) {
         <div className="tabPanel">
           {menuItems.length > 0 && menuItems.length < 5 && (
             <div className="warningBanner">
-              ⚠ Only {menuItems.length} dish{menuItems.length === 1 ? '' : 'es'} 
+              ⚠ Only {menuItems.length} dish{menuItems.length === 1 ? '' : 'es'}{' '}
               selected — dietary or allergy constraints may have limited the menu.
             </div>
           )}

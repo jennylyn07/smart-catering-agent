@@ -1085,6 +1085,93 @@ Files: README.md, orchestrator/engine.py,
 - [x] Phase 9: UX completeness — event time field, order history spec details, procurement date fix, Head Chef rationale key fix
 - [x] Phase 10: Output quality tests (A–D), reasoning mismatch fix, architecture principle correction, UI polish (layout, typo, navigation buttons)
 - [x] Phase 11: Full architecture + documentation scan, adapt endpoint T18:00 bug fix, event_time propagation complete
+- [x] Phase 12: AdaptPanel UI — “✏️ Modify This Plan” surfaced in frontend; guest count, budget, dietary adaptation live
+
+- [x] Phase 13: Pipeline stability — Azure Search 10s timeout fix, DirectAzureOpenAIClient, SK + AutoGen fully re-enabled, docs fully aligned
+
+#### Session 35 — 2026-05-08 (Post-Submission Stability & Framework Re-enablement)
+**Goal:** Identify and fix the root cause of indefinite pipeline hangs, fully re-enable Semantic Kernel and AutoGen at runtime, and bring all documentation into accurate alignment with the live system.
+
+**Root Cause Identified:**
+The pipeline was hanging silently at the Head Chef stage. `_load_candidate_recipes()` called `search_client.search()` on Azure AI Search with **no timeout**. When the Azure Search service was cold or slow, the call never returned.
+
+**A — Azure Search Timeout Fix (`agents/head_chef.py`)**
+- Wrapped `search_client.search()` + `async for doc in results` in inner coroutine `_do_search()`
+- Added `asyncio.wait_for(_do_search(), timeout=10.0)` — times out and falls back to local `knowledge_base/recipes.json`
+- Added `import asyncio` to stdlib imports
+- Architecture principle satisfied: "Every RAG call degrades gracefully" (mirrors `asyncio.wait_for(5s)` on Cosmos queries)
+
+**B — Azure OpenAI Client Replacement (`utils/azure_client.py`)**
+- Replaced `openai 2.x` `AsyncAzureOpenAI` with `DirectAzureOpenAIClient` — thin raw `httpx` wrapper calling the Azure OpenAI REST endpoint directly
+- Root cause: `openai 2.31.0` transport does not yield to the Windows asyncio event loop, causing silent hangs
+- Updated API version: `2024-02-15-preview` → `2024-12-01-preview`
+- Used by all 5 agents via `create_async_azure_openai_client()`
+
+**C — Semantic Kernel Re-enabled (`orchestrator/engine.py`)**
+- Restored `from semantic_kernel import Kernel`, `kernel_function`, `AzureChatCompletion` as try/except imports at module level
+- Import takes ~20s synchronously at startup (before asyncio event loop starts) — no GIL contention
+- `CateringAgentsPlugin` class now defined; `kernel.add_plugin()` registers it — all 5 agents invoked via `kernel.invoke()` (direct-call fallback if SK unavailable)
+- Fixed stale inline comment: AutoGen is active, not roadmap
+
+**D — AutoGen GroupChat Re-enabled (`orchestrator/autogen_negotiation.py`)**
+- Removed `raise RuntimeError(...)` blocker
+- Restored imports: `AssistantAgent`, `MaxMessageTermination`, `RoundRobinGroupChat` from `autogen_agentchat`; `AzureOpenAIChatCompletionClient` from `autogen_ext.models.openai`
+- Fixed model name `"gpt-4o"` → `"gpt-4o-2024-11-20"` (suppresses autogen-ext version mismatch warning)
+- Updated api_version: `"2024-08-01-preview"` → `"2024-12-01-preview"`
+- `RoundRobinGroupChat` now executes in ≤3 rounds when budget is exceeded
+
+**E — autogen-ext Package Install**
+- `autogen-ext[openai] 0.7.5` was missing (only `autogen-agentchat` + `autogen-core` were installed)
+- Installed: `pip install "autogen-ext[openai]"` → `autogen-ext 0.7.5` + `aiofiles 25.1.0`
+- Confirmed: `AzureOpenAIChatCompletionClient` from autogen-ext responds in 4s with no hang
+
+**F — Documentation Alignment (README.md + ARCHITECTURE.md)**
+- README.md: Microsoft Agent Framework — 4-step SK flow accurately described; AutoGen active with autogen-ext; Python 3.12+; Known Limitations renumbered 1–9 (added Startup time #1); response time 20-120s → 60-180s; Production Roadmap updated
+- ARCHITECTURE.md: SK mermaid node shows `kernel.invoke() — all 5 agents`; AutoGen node adds `autogen-ext 0.7.5`; Key Invariants adds "Every RAG call degrades gracefully"; Tech Stack corrected (SK, autogen-ext, Python 3.12, RAG timeout); Current State corrected (port 3001, startup time, throughput)
+
+**G — Frontend Proxy Server (`frontend/server.js`)**
+- Recreated Express proxy (lost in prior stash); forwards `localhost:3001` → `localhost:8001`
+
+**Testing:**
+- Import test: `engine.py` loads in 19.4s; `Kernel`, `kernel_function`, `AssistantAgent`, `AzureOpenAIChatCompletionClient` all non-None ✅
+- AutoGen client: 4.0s response, no hang ✅
+- Full pipeline: within-budget order completes end-to-end ✅
+
+**Azure resources used this session:**
+- Azure OpenAI (GPT-4o) — autogen-ext client smoke test (1 completion)
+- Azure OpenAI (GPT-4o) — full pipeline smoke test (5 agent calls)
+
+**Progress Tracker:**
+- [x] Phase 13: Pipeline stability — Azure Search 10s timeout, DirectAzureOpenAIClient, SK + AutoGen fully active, docs aligned
+
+### 📋 PHASE 12 — ADAPT PLAN UI
+
+**Feature:** `AdaptPanel` component — collapsible panel below Results Dashboard
+that lets users modify an existing plan without re-generating from scratch.
+
+**Files added/changed:**
+- `frontend/src/components/AdaptPanel.js` [NEW] — component with 3 change types,
+  pill selection, input area, loading spinner, success/error feedback
+- `frontend/src/components/AdaptPanel.css` [NEW] — neumorphic styles matching
+  existing design system tokens
+- `frontend/src/App.js` — added `isAdapting`, `adaptMessage` state;
+  `handleAdapt()` fetches `POST /api/v1/catering/adapt`; AdaptPanel placed
+  below ResultsDashboard in the right column
+- `README.md` — Real-Time Adaptation feature updated to reflect UI availability
+
+**How it works:**
+1. After plan is generated, “✏️ Modify This Plan” panel appears (collapsed).
+2. User picks: 👥 Guest Count | 💰 Budget | 🥗 Add Dietary
+3. Input pre-filled with current plan values.
+4. "Apply Changes" → `POST /api/v1/catering/adapt` with `order_id`, `change_type`, `new_value`.
+5. Backend re-runs only impacted agents (e.g. budget change → Accountant only).
+6. On success: `finalPlan` state updated in-place, success banner shown.
+7. On error: error banner shown, plan unchanged.
+
+**Architecture compliance:**
+- All adapt logic in code (which agents re-run, budget check math).
+- GPT only involved when Head Chef / Accountant reasoning needed for the change.
+- Graceful error handling — plan is never wiped on adapt failure.
 
 ### 📋 PHASE 11 — ARCHITECTURE & DOCUMENTATION AUDIT
 

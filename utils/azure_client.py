@@ -18,7 +18,7 @@ from typing import Any, Optional
 from dotenv import load_dotenv
 
 
-AZURE_OPENAI_API_VERSION = "2024-02-15-preview"
+AZURE_OPENAI_API_VERSION = "2024-12-01-preview"
 
 
 @dataclass(frozen=True)
@@ -94,20 +94,105 @@ def get_azure_openai_deployment_name() -> str:
     return get_settings().azure_openai_deployment
 
 
-def create_async_azure_openai_client() -> Any:
-    """Create an async Azure OpenAI client (no requests are sent).
+# ── Thin httpx wrapper (replaces broken openai 2.x async client on Windows) ────────
+# The openai 2.31.0 AsyncAzureOpenAI client hangs indefinitely on Windows.
+# Raw httpx calls to the same endpoint work correctly. This wrapper provides
+# the identical interface so no agent code needs to change.
 
-    Returns:
-        An AsyncAzureOpenAI client instance.
+class _Message:
+    """Minimal ChatCompletionMessage stub."""
+    def __init__(self, content: str) -> None:
+        self.content = content
+        self.role = "assistant"
+
+
+class _Choice:
+    """Minimal choice stub."""
+    def __init__(self, content: str) -> None:
+        self.message = _Message(content)
+        self.finish_reason = "stop"
+
+
+class _ChatCompletion:
+    """Minimal ChatCompletion stub."""
+    def __init__(self, content: str) -> None:
+        self.choices = [_Choice(content)]
+
+
+class _Completions:
+    """Implements client.chat.completions.create() via direct httpx calls."""
+
+    def __init__(self, endpoint: str, api_key: str, api_version: str) -> None:
+        self._endpoint = endpoint.rstrip("/")
+        self._api_key = api_key
+        self._api_version = api_version
+
+    async def create(
+        self,
+        *,
+        model: str,
+        messages: list,
+        temperature: float = 0.0,
+        max_tokens: Optional[int] = None,
+        response_format: Any = None,
+        **_kwargs: Any,
+    ) -> _ChatCompletion:
+        import httpx  # lazy import to keep startup fast
+
+        url = f"{self._endpoint}/openai/deployments/{model}/chat/completions"
+        payload: dict = {"messages": messages, "temperature": temperature}
+        if max_tokens is not None:
+            payload["max_tokens"] = max_tokens
+        if response_format is not None:
+            payload["response_format"] = (
+                response_format
+                if isinstance(response_format, dict)
+                else {"type": response_format}
+            )
+
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(120.0, connect=15.0)
+        ) as http:
+            resp = await http.post(
+                url,
+                params={"api-version": self._api_version},
+                headers={"api-key": self._api_key, "Content-Type": "application/json"},
+                json=payload,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+
+        content = data["choices"][0]["message"]["content"] or ""
+        return _ChatCompletion(content)
+
+
+class _Chat:
+    def __init__(self, completions: _Completions) -> None:
+        self.completions = completions
+
+
+class DirectAzureOpenAIClient:
+    """Drop-in async replacement for AsyncAzureOpenAI that uses raw httpx.
+
+    Exposes the same interface: client.chat.completions.create(model=..., messages=...)
+    """
+
+    def __init__(self, endpoint: str, api_key: str, api_version: str) -> None:
+        self.chat = _Chat(_Completions(endpoint, api_key, api_version))
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def create_async_azure_openai_client() -> Any:
+    """Create a direct-httpx Azure OpenAI client (no requests are sent).
+
+    Returns a DirectAzureOpenAIClient whose interface is identical to
+    AsyncAzureOpenAI: client.chat.completions.create(model=..., messages=...)
     """
 
     settings = get_settings()
-
-    from openai import AsyncAzureOpenAI  # type: ignore
-
-    return AsyncAzureOpenAI(
+    return DirectAzureOpenAIClient(
+        endpoint=settings.azure_openai_endpoint,
         api_key=settings.azure_openai_api_key,
-        azure_endpoint=settings.azure_openai_endpoint,
         api_version=AZURE_OPENAI_API_VERSION,
     )
 

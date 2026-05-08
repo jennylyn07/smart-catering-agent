@@ -1,6 +1,7 @@
 import './App.css';
 import { useState, useEffect, useRef } from 'react';
 import AgentActivityFeed from './components/AgentActivityFeed';
+import AdaptPanel from './components/AdaptPanel';
 import OrderForm from './components/OrderForm';
 import ResultsDashboard from './components/ResultsDashboard';
 
@@ -15,6 +16,8 @@ function App() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [agentStatuses, setAgentStatuses] = useState({});
+  const [isAdapting, setIsAdapting] = useState(false);
+  const [adaptMessage, setAdaptMessage] = useState(null);
   const sseRef = useRef(null);
 
   // Clean up SSE on unmount
@@ -195,23 +198,78 @@ function App() {
     }
   }
 
-  function handleNewOrder() {
-    setShowHistory(false);
-    setSelectedOrder(null);
-    setErrorMessage(null);
-  }
-
   function handleClearOrder() {
     setFinalPlan(null);
     setProcessingTimeSeconds(null);
     setNegotiationRoundsUsed(null);
     setErrorMessage(null);
     setAgentStatuses({});
+    setAdaptMessage(null);
+    setIsAdapting(false);
   }
 
   function handleReturnFromHistory() {
     setShowHistory(false);
     setSelectedOrder(null);
+  }
+
+  async function handleAdapt(changeType, newValue) {
+    setIsAdapting(true);
+    setAdaptMessage(null);
+    const apiKey = process.env.REACT_APP_API_KEY;
+    try {
+      const orderId = finalPlan?.event_specification?.event_id;
+      if (!orderId) throw new Error('Order ID not available — please regenerate the plan.');
+
+      const response = await fetch('/api/v1/catering/adapt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': apiKey,
+        },
+        body: JSON.stringify({ order_id: orderId, change_type: changeType, new_value: newValue }),
+      });
+
+      const body = await response.json().catch(() => null);
+      if (!response.ok) {
+        let errDetail = body?.error || body?.message;
+        if (!errDetail) {
+          const d = body?.detail;
+          errDetail = Array.isArray(d)
+            ? d.map(e => e.msg || JSON.stringify(e)).join('; ')
+            : String(d || `Request failed (${response.status})`);
+        }
+        throw new Error(errDetail);
+      }
+
+      const messageType = body?.header?.message_type;
+      if (messageType === 'final_plan') {
+        const newPlan = body?.payload;
+        setFinalPlan(newPlan);
+        setProcessingTimeSeconds(newPlan?.total_processing_time_seconds ?? null);
+        setNegotiationRoundsUsed(newPlan?.negotiation_rounds_used ?? 0);
+        const labels = {
+          guest_count_change: `Guest count updated to ${newValue}`,
+          budget_change:      `Budget updated to ₱${Number(newValue).toLocaleString()}`,
+          dietary_addition:   `${newValue} dietary requirement added to the plan`,
+          allergy_addition:   `${newValue} allergy added — menu regenerated`,
+          date_change:        `Event date updated to ${newValue} — logistics recalculated`,
+          event_time_change:  `Event time updated to ${newValue} — timeline regenerated`,
+          location_change:    `Venue updated to ${newValue} — logistics regenerated`,
+          notes_change:       `Special notes updated — logistics timeline regenerated`,
+        };
+        setAdaptMessage({ type: 'success', text: labels[changeType] || 'Plan updated successfully.' });
+      } else if (messageType === 'error') {
+        const rawMsg = body?.payload?.message;
+        throw new Error(typeof rawMsg === 'string' ? rawMsg : JSON.stringify(rawMsg) || 'Adaptation failed.');
+      } else {
+        throw new Error('Unexpected server response.');
+      }
+    } catch (err) {
+      setAdaptMessage({ type: 'error', text: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setIsAdapting(false);
+    }
   }
 
   return (
@@ -491,7 +549,15 @@ function App() {
               </section>
             )}
             {finalPlan ? (
-              <ResultsDashboard finalPlan={finalPlan} />
+              <>
+                <ResultsDashboard finalPlan={finalPlan} />
+                <AdaptPanel
+                  finalPlan={finalPlan}
+                  isAdapting={isAdapting}
+                  adaptMessage={adaptMessage}
+                  onAdapt={handleAdapt}
+                />
+              </>
             ) : (
               !isLoading && (
                 <div style={{

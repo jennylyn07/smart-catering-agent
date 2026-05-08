@@ -1,0 +1,309 @@
+/* AdaptPanel.css — Neumorphic modify-plan panel
+   Design tokens from index.css:
+   --neu-bg, --neu-light, --neu-mid, --neu-border, --neu-ink, --neu-ink-muted
+   --color-accent, --color-ok, --color-warn, --color-surface, --color-border, --color-ink
+   --radius-md (16px), --radius-sm (12px), --radius-pill (999px)
+   --shadow-neu-out, --shadow-neu-in, --shadow-neu-out-lg
+*/
+
+.adaptPanel {
+  background: var(--neu-bg);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-neu-out);
+  margin-top: 16px;
+  overflow: hidden;
+  transition: box-shadow 0.2s ease;
+}
+
+/* ── Header ────────────────────────────────────── */
+.adaptHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 14px 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--neu-ink);
+  text-align: left;
+  transition: background 0.15s ease;
+  border-radius: var(--radius-md);
+}
+
+.adaptHeader:hover {
+  background: var(--neu-mid);
+}
+
+.adaptTitle {
+  letter-spacing: 0.3px;
+}
+
+.adaptChevron {
+  font-size: 18px;
+  color: var(--neu-ink-muted);
+  transform: rotate(90deg);
+  transition: transform 0.2s ease;
+  display: inline-block;
+  line-height: 1;
+}
+
+.adaptChevron.open {
+  transform: rotate(270deg);
+}
+
+/* ── Body ──────────────────────────────────────── */
+.adaptBody {
+  padding: 0 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: adaptFadeIn 0.18s ease;
+}
+
+@keyframes adaptFadeIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Feedback banner ───────────────────────────── */
+.adaptFeedback {
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.adaptFeedback.success {
+  background: rgba(44, 168, 74, 0.1);
+  color: var(--color-ok);
+  border: 1px solid rgba(44, 168, 74, 0.3);
+}
+
+.adaptFeedback.error {
+  background: rgba(213, 58, 58, 0.08);
+  color: var(--color-warn);
+  border: 1px solid rgba(213, 58, 58, 0.25);
+}
+
+/* ── Spec summary ──────────────────────────────── */
+.adaptSpecSummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--neu-ink-muted);
+  background: var(--neu-mid);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+}
+
+.adaptSpecSummary strong {
+  color: var(--neu-ink);
+}
+
+/* ── Change type pills ─────────────────────────── */
+.changeTypePills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ── Pill groups ───────────────────────────────── */
+.pillGroups {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pillGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pillGroupLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--neu-ink-muted);
+}
+
+/* ── Agent hint ────────────────────────────────── */
+.agentHint {
+  font-size: 11px;
+  color: var(--color-accent);
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.pill {
+  padding: 7px 16px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: var(--neu-bg);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--neu-ink-muted);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: var(--shadow-neu-out);
+}
+
+.pill:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.pill.active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(232, 96, 28, 0.35);
+}
+
+.pill:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Input area ────────────────────────────────── */
+.adaptInputArea {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.adaptInputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.adaptLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--neu-ink-muted);
+}
+
+.adaptInput {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
+  box-shadow: var(--shadow-neu-in);
+}
+
+.adaptInput:hover:not(:disabled) {
+  border-color: var(--color-accent);
+}
+
+.adaptInput:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(232, 96, 28, 0.12);
+}
+
+.adaptInput:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.adaptTextarea {
+  resize: vertical;
+  min-height: 72px;
+  line-height: 1.5;
+}
+
+.adaptSelect {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236E7F8D' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+
+.adaptHint {
+  font-size: 12px;
+  color: var(--neu-ink-muted);
+  margin: 0;
+  font-style: italic;
+}
+
+/* ── Apply button ──────────────────────────────── */
+.applyBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 20px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.12s;
+  box-shadow: 0 3px 10px rgba(232, 96, 28, 0.35);
+  width: 100%;
+}
+
+.applyBtn:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.applyBtn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.applyBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.applyBtn.loading {
+  background: var(--neu-mid);
+  color: var(--neu-ink-muted);
+  box-shadow: none;
+}
+
+/* ── Spinner ───────────────────────────────────── */
+.adaptSpinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: adaptSpin 0.7s linear infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+@keyframes adaptSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Disclaimer ────────────────────────────────── */
+.adaptDisclaimer {
+  font-size: 11px;
+  color: var(--neu-ink-muted);
+  margin: 0;
+  text-align: center;
+  line-height: 1.5;
+}

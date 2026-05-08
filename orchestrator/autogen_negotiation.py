@@ -1,17 +1,3 @@
-"""orchestrator/autogen_negotiation.py
-
-AutoGen GroupChat-based budget negotiation between Accountant and Head Chef.
-
-Replaces the manual negotiation for-loop in engine.py with a genuine
-RoundRobinGroupChat conversation. If AutoGen fails for any reason, the
-caller catches the exception and falls back to the manual loop.
-
-Pipeline integration:
-    engine.py calls run_autogen_negotiation() wrapping its negotiation block.
-    On success: returns (updated_menu_items, updated_flagged_items, rounds_used).
-    On failure: raises exception → caller falls back to manual loop.
-"""
-
 from __future__ import annotations
 
 import json
@@ -21,25 +7,13 @@ import re
 from typing import Optional
 
 from autogen_agentchat.agents import AssistantAgent
-from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_agentchat.conditions import MaxMessageTermination
+from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_ext.models.openai import AzureOpenAIChatCompletionClient
 
 from utils.json_schema import EventSpecification, MenuPlan, CostReport
 
 logger = logging.getLogger(__name__)
-
-
-def _make_model_client() -> AzureOpenAIChatCompletionClient:
-    """Create an AzureOpenAI model client for AutoGen agents."""
-    return AzureOpenAIChatCompletionClient(
-        azure_deployment=os.environ["AZURE_OPENAI_DEPLOYMENT"],
-        azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
-        api_key=os.environ["AZURE_OPENAI_API_KEY"],
-        api_version="2024-08-01-preview",
-        model="gpt-4o",
-    )
-
 
 def _extract_json_block(text: str, key: str) -> list:
     """Extract a JSON array from a text message by key.
@@ -84,21 +58,17 @@ async def run_autogen_negotiation(
 ) -> tuple[list[str], list[str], int]:
     """Run a RoundRobinGroupChat negotiation between Accountant and Head Chef.
 
-    The Accountant identifies over-budget dishes; the Head Chef proposes
-    reformulations. They alternate up to max_rounds * 2 messages total.
-
-    Args:
-        menu_plan: Current menu plan from the Head Chef.
-        cost_report: Current cost report from the Accountant.
-        event_spec: Event specification with budget and constraints.
-        max_rounds: Maximum negotiation rounds (each = one Accountant + Chef exchange).
-
-    Returns:
-        Tuple of (reformulated_dish_names, flagged_item_names, rounds_used).
-        - reformulated_dish_names: new dish names proposed by Chef (may be empty if no change)
-        - flagged_item_names: dishes the Accountant flagged
-        - rounds_used: how many rounds were actually used
+    On success: returns (updated_menu_items, updated_flagged_items, rounds_used).
+    On failure: raises exception → engine.py caller falls back to manual loop.
     """
+    model_client = AzureOpenAIChatCompletionClient(
+        azure_deployment=os.environ["AZURE_OPENAI_DEPLOYMENT"],
+        azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
+        api_key=os.environ["AZURE_OPENAI_API_KEY"],
+        api_version="2024-12-01-preview",
+        model="gpt-4o-2024-11-20",
+    )
+
     budget = event_spec.budget_php or 0
     total_cost = cost_report.total_cost_php
     over_by = max(0.0, total_cost - budget)
@@ -150,8 +120,6 @@ Always respond with a JSON block containing:
 {{"reformulated_dishes": ["new dish name 1", "new dish name 2"], "rationale": "brief explanation"}}
 
 If the menu is already as lean as possible, say so and set reformulated_dishes to []."""
-
-    model_client = _make_model_client()
 
     accountant_agent = AssistantAgent(
         name="Accountant",

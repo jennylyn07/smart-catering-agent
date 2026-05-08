@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import random
@@ -599,15 +600,18 @@ async def _load_candidate_recipes(*, event_spec: EventSpecification) -> list[dic
     try:
         search_client = create_search_client(index_name="catering-knowledge-base")
         async with search_client:
-            results = await search_client.search(
-                search_text=query,
-                filter="category eq 'recipes'",
-                top=49,
-            )
+            async def _do_search() -> list[dict[str, Any]]:
+                results = await search_client.search(
+                    search_text=query,
+                    filter="category eq 'recipes'",
+                    top=49,
+                )
+                found: list[dict[str, Any]] = []
+                async for doc in results:
+                    found.extend(_extract_recipes_from_search_content(doc.get("content")))
+                return found
 
-            candidates: list[dict[str, Any]] = []
-            async for doc in results:
-                candidates.extend(_extract_recipes_from_search_content(doc.get("content")))
+            candidates = await asyncio.wait_for(_do_search(), timeout=10.0)
 
         if candidates:
             return candidates

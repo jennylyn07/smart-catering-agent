@@ -49,8 +49,8 @@ flowchart TD
     end
 
     subgraph Framework["🛠️ Microsoft Agent Framework"]
-        SK["Semantic Kernel\nCateringAgentsPlugin\n@kernel_function × 5 agents\nkernel.invoke() orchestration"]
-        AutoGen["AutoGen 0.7.5\nRoundRobinGroupChat\nAccountantAgent + HeadChefAgent\nAzureOpenAIChatCompletionClient"]
+        SK["Semantic Kernel\nCateringAgentsPlugin\n@kernel_function × 5 agents\nkernel.invoke() — all 5 agents\nFallback: direct async call"]
+        AutoGen["AutoGen 0.7.5 + autogen-ext 0.7.5\nRoundRobinGroupChat\nAccountantAgent + HeadChefAgent\nAzureOpenAIChatCompletionClient"]
     end
 
     subgraph UI["🖥️ React Frontend — port 3000"]
@@ -166,7 +166,8 @@ classDiagram
 | Allergies never violated | `_IMMUTABLE_KEYS` in SharedMemory + post-AI code check |
 | Budget status never manipulated | Deterministic math only — GPT never touches cost calc |
 | Every GPT call degrades gracefully | `_call_with_retry()` + static fallback on all 5 agents |
-| AutoGen never breaks the pipeline | `try/except` fallback to manual negotiation loop |
+| Every RAG call degrades gracefully | `asyncio.wait_for(10s)` on Azure Search → local `recipes.json` fallback |
+| AutoGen never breaks the pipeline | Full `RoundRobinGroupChat` active; `try/except` fallback to manual loop |
 | Dietary flags immutable mid-pipeline | SharedMemory rejects writes to protected keys |
 
 ---
@@ -176,15 +177,15 @@ classDiagram
 | Layer | Technology | Version | Role |
 |---|---|---|---|
 | **AI Reasoning** | Azure OpenAI GPT-4o | 2024-11-20 | All 5 agents' reasoning, judgment, and rationale |
-| **Agent Framework** | Semantic Kernel | 1.41.2 | `CateringAgentsPlugin` + `@kernel_function` × 5, `kernel.invoke()` for all agents |
-| **Multi-Agent Chat** | AutoGen AgentChat | 0.7.5 | `RoundRobinGroupChat` — budget negotiation between AccountantAgent + HeadChefAgent |
-| **AutoGen Model Client** | AutoGen Ext | 0.7.5 | `AzureOpenAIChatCompletionClient` for AutoGen agents |
-| **RAG** | Azure AI Search | REST API | 70-document index — recipe selection + ingredient pricing |
+| **Agent Framework** | Semantic Kernel | 1.41.2 | `CateringAgentsPlugin` + `@kernel_function` × 5 — all 5 agents invoked via `kernel.invoke()`; `Kernel` initialized at startup with `AzureChatCompletion` service |
+| **Multi-Agent Chat** | AutoGen AgentChat | 0.7.5 | `RoundRobinGroupChat` — live budget negotiation between `AccountantAgent` + `HeadChefAgent` |
+| **AutoGen Model Client** | autogen-ext | 0.7.5 | `AzureOpenAIChatCompletionClient` — connects AutoGen agents to Azure OpenAI |
+| **RAG** | Azure AI Search | REST API | 70-document index — recipe selection + ingredient pricing; `asyncio.wait_for(10s)` timeout with local fallback |
 | **Persistence & Memory** | Azure Cosmos DB | NoSQL Serverless | Order storage + long-term memory (`query_past_orders()`) |
 | **Storage** | Azure Blob Storage | LRS | Document layer |
 | **API Layer** | FastAPI + Uvicorn | 0.115 / 0.34 | REST endpoints, X-API-Key auth, rate limiting (10/min) |
 | **Data Validation** | Pydantic | 2.x | Schema enforcement on all agent messages + API input |
-| **Backend Language** | Python | 3.11 | Async pipeline via `asyncio` |
+| **Backend Language** | Python | 3.12 | Async pipeline via `asyncio`; ~20s startup for SK + AutoGen import |
 | **Frontend** | React | 18 | Neumorphic UI — order form, live pipeline, results dashboard |
 | **Agent Protocol** | Custom JSON + SHA-256 | — | Typed `AgentMessage` envelope on every agent-to-agent message |
 
@@ -194,9 +195,10 @@ classDiagram
 
 ### Current State (Hackathon Demo)
 The system runs locally with all AI and data services hosted on Azure cloud:
-- **Compute**: localhost:8001 (backend) + localhost:3000 (frontend)
+- **Compute**: localhost:8001 (backend) + localhost:3001 (frontend via proxy)
 - **AI Services**: Azure OpenAI (cloud), Azure AI Search (cloud), Azure Cosmos DB (cloud)
-- **Throughput**: Azure free tier — 20-120s per pipeline request
+- **Startup**: ~20s for Semantic Kernel + AutoGen import on Windows
+- **Throughput**: Azure free tier — 60-180s per pipeline request (5 sequential GPT-4o calls)
 - **Concurrency**: Single user, sequential requests (FastAPI async handles one pipeline per request)
 
 ### Production Scalability Path

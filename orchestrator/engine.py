@@ -39,6 +39,8 @@ from utils.logger import log_event
 from utils.cosmos_store import get_container_name, persist_final_plan
 from utils.cosmos_store import format_past_orders_context, query_past_orders
 
+# Semantic Kernel — imported synchronously at startup (before event loop).
+# Import takes ~22s on Windows; acceptable as a one-time startup cost.
 try:
     from semantic_kernel import Kernel
     from semantic_kernel.functions import kernel_function
@@ -48,6 +50,9 @@ except Exception:  # noqa: BLE001
     kernel_function = None  # type: ignore[assignment]
     AzureChatCompletion = None  # type: ignore[assignment]
 
+# AutoGen — populated by autogen_negotiation module at startup.
+# engine.py only uses AssistantAgent/AzureOpenAIChatCompletionClient for
+# _build_autogen_orchestrator_agent(); both remain None if ext unavailable.
 try:
     from autogen_agentchat.agents import AssistantAgent
     from autogen_ext.models.openai import AzureOpenAIChatCompletionClient
@@ -501,6 +506,114 @@ async def adapt_from_existing_plan(
         },
     )
 
+    # ── LIGHTWEIGHT ADAPTATIONS (Logistics + Stock only) ──────────────────────
+    # For changes that don't affect the menu or cost (date, time, notes, location),
+    # skip Head Chef and Accountant entirely — re-run only the two downstream agents.
+    # Which agents re-run is determined by CODE (architecture principle), not GPT.
+    _LIGHTWEIGHT_FIELD_MAP = {
+        AdaptationChangeType.DATE_CHANGE:        "event_date",
+        AdaptationChangeType.EVENT_TIME_CHANGE:  "event_time",
+        AdaptationChangeType.NOTES_CHANGE:       "notes",
+        AdaptationChangeType.LOCATION_CHANGE:    "location",
+    }
+    if change_type in _LIGHTWEIGHT_FIELD_MAP:
+        raw_val = str(new_value).strip() if new_value is not None else ""
+        if change_type == AdaptationChangeType.DATE_CHANGE:
+            try:
+                datetime.strptime(raw_val, "%Y-%m-%d")
+            except ValueError:
+                return _error_message(
+                    session_id=session_id,
+                    error_code="ADAPT_INVALID_DATE",
+                    message="event_date must be in YYYY-MM-DD format.",
+                )
+        elif change_type == AdaptationChangeType.EVENT_TIME_CHANGE:
+            try:
+                datetime.strptime(raw_val, "%H:%M")
+            except ValueError:
+                return _error_message(
+                    session_id=session_id,
+                    error_code="ADAPT_INVALID_TIME",
+                    message="event_time must be in HH:MM (24h) format.",
+                )
+        elif not raw_val:
+            return _error_message(
+                session_id=session_id,
+                error_code="ADAPT_INVALID_VALUE",
+                message=f"New value for {change_type} cannot be empty.",
+            )
+
+        event_spec = event_spec.model_copy(update={_LIGHTWEIGHT_FIELD_MAP[change_type]: raw_val})
+
+        lw_cost_msg = _wrap_message(
+            payload=existing_plan.cost_report,
+            message_type="cost_report",
+            target_agent="logistics",
+            session_id=session_id,
+        )
+        lw_event_dt = f"{event_spec.event_date}T{event_spec.event_time or '18:00'}:00+08:00"
+        lw_logistics_msg = await run_logistics(
+            cost_report_message=lw_cost_msg,
+            event_spec=event_spec,
+            event_datetime_iso=lw_event_dt,
+            session_id=session_id,
+        )
+        stopped = _stop_on_error(msg=lw_logistics_msg, failed_agent="logistics", session_id=session_id)
+        if stopped is not None:
+            return stopped
+        if not isinstance(lw_logistics_msg.payload, LogisticsPlan):
+            return _error_message(
+                session_id=session_id,
+                error_code="ADAPT_LOGISTICS_BAD_PAYLOAD",
+                message="Logistics returned an unexpected payload during lightweight adaptation.",
+            )
+
+        lw_stock_msg = await run_stock_manager(
+            logistics_plan_message=lw_logistics_msg,
+            cost_report_message=lw_cost_msg,
+            session_id=session_id,
+            event_date_fallback=event_spec.event_date,
+        )
+        stopped = _stop_on_error(msg=lw_stock_msg, failed_agent="stock_manager", session_id=session_id)
+        if stopped is not None:
+            return stopped
+        if not isinstance(lw_stock_msg.payload, ProcurementList):
+            return _error_message(
+                session_id=session_id,
+                error_code="ADAPT_STOCK_MANAGER_BAD_PAYLOAD",
+                message="Stock Manager returned an unexpected payload during lightweight adaptation.",
+            )
+
+        lw_total = round(time.perf_counter() - start, 3)
+        lw_final = FinalPlan(
+            event_id=event_spec.event_id,
+            event_specification=event_spec,
+            menu_plan=existing_plan.menu_plan,
+            cost_report=existing_plan.cost_report,
+            logistics_plan=lw_logistics_msg.payload,
+            procurement_list=lw_stock_msg.payload,
+            customer_summary=existing_plan.customer_summary,
+            total_processing_time_seconds=lw_total,
+            negotiation_rounds_used=existing_plan.negotiation_rounds_used,
+        )
+        log_event(
+            agent_id=AGENT_ID,
+            action="adaptation_finish",
+            status="success",
+            details={
+                "order_id": order_id,
+                "change_type": str(change_type),
+                "agents_rerun": "logistics,stock_manager",
+                "session_id": session_id,
+            },
+        )
+        return _wrap_message(
+            payload=lw_final,
+            message_type="final_plan",
+            target_agent="api",
+            session_id=session_id,
+        )
+
     if change_type == AdaptationChangeType.GUEST_COUNT_CHANGE:
         try:
             new_guest_count = int(new_value)
@@ -559,6 +672,29 @@ async def adapt_from_existing_plan(
 
         event_spec = event_spec.model_copy(update={"budget_php": new_budget_php})
         menu_plan_message = _wrap_menu_plan_for_accountant(menu_plan=existing_plan.menu_plan, session_id=session_id)
+    elif change_type == AdaptationChangeType.ALLERGY_ADDITION:
+        addition = str(new_value).strip()
+        if not addition:
+            return _error_message(
+                session_id=session_id,
+                error_code="ADAPT_INVALID_ALLERGY_ADDITION",
+                message="Invalid allergy addition for adaptation.",
+            )
+        updated_allergies = list(event_spec.allergies)
+        if addition not in updated_allergies:
+            updated_allergies.append(addition)
+        event_spec = event_spec.model_copy(update={"allergies": updated_allergies})
+
+        menu_plan_message = await run_head_chef(event_spec=event_spec, session_id=session_id)
+        stopped = _stop_on_error(msg=menu_plan_message, failed_agent="head_chef", session_id=session_id)
+        if stopped is not None:
+            return stopped
+        if not isinstance(menu_plan_message.payload, MenuPlan):
+            return _error_message(
+                session_id=session_id,
+                error_code="ADAPT_HEAD_CHEF_BAD_PAYLOAD",
+                message="Head Chef returned an unexpected payload during allergy adaptation.",
+            )
     else:
         return _error_message(
             session_id=session_id,
@@ -589,11 +725,14 @@ async def adapt_from_existing_plan(
         # ── AutoGen GroupChat negotiation (primary path) ─────────────────────
         try:
             if isinstance(menu_plan_message.payload, MenuPlan):
-                reformulated, autogen_flagged, autogen_rounds = await run_autogen_negotiation(
-                    menu_plan=menu_plan_message.payload,
-                    cost_report=cost_report_message.payload,
-                    event_spec=event_spec,
-                    max_rounds=3,
+                reformulated, autogen_flagged, autogen_rounds = await asyncio.wait_for(
+                    run_autogen_negotiation(
+                        menu_plan=menu_plan_message.payload,
+                        cost_report=cost_report_message.payload,
+                        event_spec=event_spec,
+                        max_rounds=3,
+                    ),
+                    timeout=60.0,  # fall back to manual loop if autogen takes >60s
                 )
                 negotiation_rounds_used = autogen_rounds
                 _autogen_used = True
@@ -758,9 +897,9 @@ async def run_orchestration(
     kernel = _build_kernel()
     # AutoGen AssistantAgent is instantiated here as part of the Microsoft Agent
     # Framework integration. Pipeline sequencing, negotiation, and agent handoffs
-    # are managed directly by this orchestration engine via Semantic Kernel
-    # kernel.invoke(). AutoGen GroupChat for dynamic coordination is on the
-    # production roadmap.
+    # CateringAgentsPlugin is registered on the Semantic Kernel so every agent
+    # is invoked via kernel.invoke(). AutoGen GroupChat drives budget negotiation
+    # when the plan exceeds budget; manual loop is the fallback.
     _autogen_agent = _build_autogen_orchestrator_agent()  # noqa: F841
     plugin_name = "catering_agents"
     if kernel is not None and kernel_function is not None:

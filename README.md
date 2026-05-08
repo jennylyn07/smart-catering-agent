@@ -38,8 +38,8 @@ Customer Request (raw text)
                           ▼
 ┌─────────────────────────────────────────────────────┐
 │           Orchestration Engine                       │
-│     Semantic Kernel plugin orchestration              │
-│     SharedMemory · Retry Logic · Audit Trail         │
+│  Semantic Kernel (AzureChatCompletion + Plugin)      │
+│  SharedMemory · Retry Logic · Audit Trail            │
 └──┬──────────┬──────────┬──────────┬─────────────────┘
    │          │          │          │          │
    ▼          ▼          ▼          ▼          ▼
@@ -218,23 +218,25 @@ logged with agent_id, action, status, and timestamp.
 
 ## Microsoft Agent Framework
 
-Agents are registered as a Semantic Kernel plugin 
-(`CateringAgentsPlugin`) and invoked via `kernel.invoke()` 
-throughout the pipeline. AutoGen's `RoundRobinGroupChat` drives
-the budget negotiation conversation between the Accountant and
-Head Chef agents.
+Agents are implemented as a **Semantic Kernel plugin** (`CateringAgentsPlugin`)
+where each agent is a `@kernel_function`. The orchestration engine:
+1. Builds a `Kernel` initialized with `AzureChatCompletion` at startup
+2. Registers `CateringAgentsPlugin` on the kernel
+3. Invokes every agent via `kernel.invoke(plugin_name, function_name, ...)` 
+4. Falls back to direct async call if SK is unavailable
 
-**Active — Semantic Kernel:** `CateringAgentsPlugin` with `@kernel_function` 
-decorators, invoked via `kernel.invoke()` for all 5 agents
+**Semantic Kernel:** `CateringAgentsPlugin` with `@kernel_function` decorators
+invoked via `kernel.invoke()` for all 5 agents. Startup import takes ~20s on
+Windows; all subsequent requests are unaffected.
 
-**Active — AutoGen GroupChat:** `AccountantAgent` + `HeadChefAgent` run in a
-`RoundRobinGroupChat` (≤3 rounds) when the plan exceeds budget.
-AutoGen conducts the negotiation conversation; flagged dishes are
-passed back to the Semantic Kernel Head Chef for structured revision.
-Graceful fallback to manual loop on any AutoGen exception.
+**AutoGen GroupChat:** `AccountantAgent` + `HeadChefAgent` run in a live
+`RoundRobinGroupChat` (≤3 rounds) via **autogen-ext 0.7.5** when the plan
+exceeds budget. `AzureOpenAIChatCompletionClient` powers both agents.
+Graceful fallback to manual negotiation loop on any AutoGen exception.
 
 **Production roadmap:** SK Planner for adaptive pipeline sequencing,
 SK Memory Plugins for persistent agent context
+
 
 ---
 
@@ -250,7 +252,7 @@ SK Memory Plugins for persistent agent context
 | Profitability Forecast | recommended_selling_price_php + estimated_margin_percent (30% target) in every CostReport |
 | Nutritional Data | Per-serving kcal/protein/carbs/fat on every MenuItem via NUTRITION_LOOKUP (68 dishes) |
 | Gantt Chart | GanttTask list derived from CPM timeline in every LogisticsPlan |
-| Real-Time Adaptation | /adapt endpoint re-runs impacted pipeline on guest count, dietary, or budget change |
+| Real-Time Adaptation | **"✏️ Modify This Plan" panel** (UI) — re-runs only impacted agents on guest count, dietary, or budget change; updated plan replaces current results in-place |
 | Multi-Event Optimization | Multi-order endpoint with shared procurement across concurrent events |
 | Parallel Agent Execution | Logistics Lead + Stock Manager run concurrently via asyncio.gather() |
 | Retry Logic | _call_with_retry() wraps all 5 agent calls — up to 3 attempts on transient failures |
@@ -299,7 +301,7 @@ AZURE_STORAGE_CONNECTION_STRING=your_storage_connection_string
 ## Running Locally
 
 ### Prerequisites
-- Python 3.11+
+- Python 3.12+
 - Node.js 18+
 - Azure services configured (see Environment Variables)
 
@@ -339,27 +341,30 @@ Azure Container Apps.
 
 ## Known Limitations
 
-1. **Response time** — 20-120s under Azure free tier due
-   to multiple GPT-4o calls. Logistics and Stock Manager
+1. **Startup time** — Backend imports Semantic Kernel and AutoGen at
+   startup, which takes ~20s on Windows. Once ready, the server
+   handles all requests normally. No impact on per-request latency.
+2. **Response time** — 60-180s under Azure free tier due
+   to multiple sequential GPT-4o calls. Logistics and Stock Manager
    now run in parallel (asyncio.gather), reducing the
    final two stages. Production fix: provisioned throughput.
-2. **Knowledge base dishes only** — dishes outside
+3. **Knowledge base dishes only** — dishes outside
    recipes.json are substituted with nearest match.
-3. **Fixed labor rate** — PHP 150/guest flat rate.
+4. **Fixed labor rate** — PHP 150/guest flat rate.
    Production would vary by service style and duration.
-4. **Inventory source** — Stock Manager queries Cosmos DB
+5. **Inventory source** — Stock Manager queries Cosmos DB
    (`catering-inventory` container, 33 seeded items) first.
    Falls back to local `data/mock_inventory.json` if Cosmos
    is unavailable. Production would have live inventory writes
    after each procurement list is generated.
-5. **Local execution** — App Service blocked by free
+6. **Local execution** — App Service blocked by free
    subscription quota. Functionally identical to cloud
    deployment for demo purposes.
-6. **Agent progress simulation** — The UI shows live
+7. **Agent progress simulation** — The UI shows live
    elapsed time and time-based agent advancement during
    processing. True per-agent real-time status requires
    an async pipeline (production roadmap).
-7. **Knowledge base constraint coverage** — The 68-recipe
+8. **Knowledge base constraint coverage** — The 68-recipe
    knowledge base covers Filipino, Western, Chinese, and
    International cuisine. Applying 3+ simultaneous hard
    constraints (e.g., Gluten-free + Western, or
@@ -369,7 +374,7 @@ Azure Container Apps.
    warning banner. Expanding `knowledge_base/recipes.json`
    with more constraint-compatible recipes would improve
    coverage.
-8. **Head Chef reasoning on highly constrained menus** —
+9. **Head Chef reasoning on highly constrained menus** —
    Per-dish GPT reasoning (temp 0.8) may return empty
    rationale fields when fewer than 5 recipes match the
    combined constraints. Per the architecture principle
@@ -389,10 +394,9 @@ Azure Container Apps.
 
 | Feature | Description | Priority |
 |---|---|---|
-| Tool Calling | SK `@kernel_function` tools for on-demand RAG (search_recipes, get_price) instead of pre-fetch | High |
 | SK Planner | Dynamic pipeline generation — agents register capabilities, Planner decides execution order | Medium |
 | Real-Time SSE | FastAPI BackgroundTasks + asyncio.Queue per session — true per-agent progress streaming | Medium |
-| Provisioned Throughput | Sub-5s per GPT-4o call — 8-20s total pipeline vs current 20-120s | High |
+| Provisioned Throughput | Sub-5s per GPT-4o call — 8-20s total pipeline vs current 60-180s | High |
 | Evals Framework | RAGAS/custom harness for prompt quality A/B testing | Low |
 | Live Inventory Updates | Subtract purchased quantities from Cosmos inventory after each order | Low |
 | Azure App Service | Container deployment when subscription quota allows | Medium |

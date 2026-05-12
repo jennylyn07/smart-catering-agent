@@ -117,7 +117,12 @@ T-minus Critical Path Method. Calculates exact staff numbers
 for each specific event. Derives a **Gantt chart**
 (`gantt_chart: List[GanttTask]`) directly from the CPM
 timeline, providing machine-readable start/end/duration
-segments for each preparation milestone.
+segments for each preparation milestone. The `gantt_chart`
+field is included in the API response JSON for every order
+and is designed for integration with external project
+management tools. The current frontend dashboard renders the
+CPM timeline as a table; visual Gantt chart rendering is on
+the production roadmap.
 
 **Technology:** GPT-4o (temp 0.3) · Deterministic backward
 time calculation · Industry ratios in prompt · Gantt

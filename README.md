@@ -93,8 +93,9 @@ Hardcoded `NUTRITION_LOOKUP` (68 dishes) → per-serving kcal/protein/carbs/fat 
 **Role:** Cost calculation and budget compliance
 
 Calculates ingredient costs from RAG pricing data, applies
-a 7% industry-standard cost buffer, adds fixed labor and
-overhead. When over budget, uses pre-computed variance
+a **7% cost buffer** (`ingredients_cost × 0.07`) as industry-standard
+protection against price volatility, adds PHP 150/guest labor
+and fixed overhead. When over budget, uses pre-computed variance
 analysis before calling GPT-4o to reason about which dishes
 to flag — minimum flagging, reformulation before removal.
 Negotiates with Head Chef up to 3 rounds. Outputs a
@@ -214,10 +215,10 @@ logged with agent_id, action, status, and timestamp.
 
 | Service | Resource | Role in System |
 |---|---|---|
-| Azure OpenAI GPT-4o | foundry-jmagno-2026 | Powers all 5 agent reasoning calls |
+| Azure OpenAI GPT-4o | foundry-jmagno-2026-resource | Powers all 5 agent reasoning calls |
 | Azure AI Search | search-jmagno-2026 | RAG knowledge base — 70 documents (68 recipes + pricing + suppliers) |
 | Azure Cosmos DB | cosmos-jmagno-2026 | Order persistence + historical order context queries |
-| Azure Blob Storage | storagejmagno2026 | Document storage layer |
+| Azure Blob Storage | storagejmagno2026 | Provisioned — not in active pipeline (future document storage layer) |
 
 ---
 
@@ -234,8 +235,8 @@ where each agent is a `@kernel_function`. The orchestration engine:
 invoked via `kernel.invoke()` for all 5 agents. Startup import takes ~20s on
 Windows; all subsequent requests are unaffected.
 
-**AutoGen GroupChat:** `AccountantAgent` + `HeadChefAgent` run in a live
-`RoundRobinGroupChat` (≤3 rounds) via **autogen-ext 0.7.5** when the plan
+**AutoGen GroupChat:** `Accountant` + `HeadChef` agents run in a live
+`RoundRobinGroupChat` (≤3 rounds, `MaxMessageTermination`) via **autogen-ext 0.7.5** when the plan
 exceeds budget. `AzureOpenAIChatCompletionClient` powers both agents.
 Graceful fallback to manual negotiation loop on any AutoGen exception.
 
